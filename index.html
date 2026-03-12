@@ -914,19 +914,33 @@ window.doLogin = async function() {
   // Show loading state
   if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'Signing in…'; }
 
-  // If Firebase is not ready, we'll still try login using DEFAULT_USERS (offline mode)
-  // So we do NOT return early here
+  // Note: even if _fbReady is false, we continue and try DEFAULT_USERS below
 
   try {
-    // Find user by username in Firebase
-    const snap = await fbGet('users');
+    // Find user — try Firebase, then always fall back to DEFAULT_USERS
     let matchedUser = null;
-    if (snap.exists()) {
-      const usersObj = snap.val();
-      for (const uid in usersObj) {
-        const u2 = usersObj[uid];
-        if (u2.username === u && u2.password === p) { matchedUser = { uid, ...u2 }; break; }
+
+    // Try Firebase first
+    if (_fbReady) {
+      try {
+        const snap = await fbGet('users');
+        if (snap.exists()) {
+          const usersObj = snap.val();
+          for (const uid in usersObj) {
+            const u2 = usersObj[uid];
+            if (u2.username === u && u2.password === p) { matchedUser = { uid, ...u2 }; break; }
+          }
+        }
+      } catch(fbErr) {
+        console.warn('[HPSchool] Firebase read failed:', fbErr.code || fbErr.message);
       }
+    }
+
+    // ALWAYS fallback to DEFAULT_USERS if Firebase didn't find them
+    // This covers: empty DB, rules not set, no internet, seeding not run yet
+    if (!matchedUser) {
+      const local = DEFAULT_USERS.find(u2 => u2.username === u && u2.password === p);
+      if (local) matchedUser = { ...local };
     }
 
     if (matchedUser && matchedUser.role === 'admin') {
@@ -953,10 +967,12 @@ window.doLogin = async function() {
       Security.recordSuccess(u);
       Security.createSession();
       curUser = { uid: matchedUser.uid, name: matchedUser.name, username: matchedUser.username, isAdmin:false };
-      // Update lastAccess in Firebase
+      // Update lastAccess in Firebase (best-effort)
       if (!matchedUser.progress) matchedUser.progress = dp();
       matchedUser.progress.lastAccess = new Date().toISOString();
-      await fbUpd(`users/${matchedUser.uid}/progress`, { lastAccess: matchedUser.progress.lastAccess });
+      try {
+        await fbUpd(`users/${matchedUser.uid}/progress`, { lastAccess: matchedUser.progress.lastAccess });
+      } catch(e) { /* non-fatal — offline or DB not seeded yet */ }
       logAct(`Student "${Security.esc(matchedUser.name)}" logged in`, 'g');
       showPg('pg-app');
       startStudentLiveSync(matchedUser.uid, matchedUser);
@@ -980,7 +996,7 @@ window.doLogin = async function() {
     logAct(`Failed login for "${Security.esc(u)}"`, 'r');
   } catch(err) {
     console.error('[HPSchool] Login error:', err);
-    toast('Login failed — unexpected error. Please reload the page.', 'err'); console.error('[HPSchool] Unexpected login error:', err);
+    toast('Login failed — check your connection and try again.', 'err');
   }
   if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
 };
@@ -1055,28 +1071,16 @@ function requireSession() {
 ═══════════════════════════════════════════════════════ */
 function startAdminLiveSync() {
   if (_adminUnsubscribe) { try{_adminUnsubscribe();}catch(e){} }
-  // Seed cache from DEFAULT_USERS so admin panel always has data
-  if (Object.keys(_usersCache).length === 0) {
-    DEFAULT_USERS.forEach(u => { _usersCache[u.uid] = { ...u }; });
-  }
-  if (!_fbReady) { renderAdm(); return; }
-  try {
-    _adminUnsubscribe = fbSub('users', snap => {
-      _usersCache = {};
-      if (snap.exists()) {
-        const usersObj = snap.val();
-        for (const uid in usersObj) _usersCache[uid] = { uid, ...usersObj[uid] };
-      } else {
-        // Firebase has no data yet — use defaults
-        DEFAULT_USERS.forEach(u => { _usersCache[u.uid] = { ...u }; });
-      }
-      const adminActive = document.getElementById('pg-admin').classList.contains('active');
-      if (adminActive && curUser && curUser.isAdmin) renderAdm();
-    });
-  } catch(e) {
-    console.warn('[HPSchool] Admin live sync unavailable:', e.message);
-    renderAdm(); // still render with cached data
-  }
+  _adminUnsubscribe = fbSub('users', snap => {
+    _usersCache = {};
+    if (snap.exists()) {
+      const usersObj = snap.val();
+      for (const uid in usersObj) _usersCache[uid] = { uid, ...usersObj[uid] };
+    }
+    // Re-render admin dashboard section if currently on admin page
+    const adminActive = document.getElementById('pg-admin').classList.contains('active');
+    if (adminActive && curUser && curUser.isAdmin) renderAdm();
+  });
 }
 
 function startStudentLiveSync(uid, initialData) {
@@ -1085,7 +1089,7 @@ function startStudentLiveSync(uid, initialData) {
   initApp(initialData);
 
   if (_studentUnsubscribe) { try{_studentUnsubscribe();}catch(e){} }
-  // Listen for changes to this student's record (best-effort — works offline too)
+  // Listen for live changes — best-effort, not required for login to work
   if (_fbReady) {
     try {
       _studentUnsubscribe = fbSub(`users/${uid}`, snap => {
@@ -1093,13 +1097,9 @@ function startStudentLiveSync(uid, initialData) {
         const updated = { uid, ...snap.val() };
         _usersCache[uid] = updated;
         const appActive = document.getElementById('pg-app').classList.contains('active');
-        if (appActive && curUser && !curUser.isAdmin) {
-          renderSB(); updateNavBtns();
-        }
+        if (appActive && curUser && !curUser.isAdmin) { renderSB(); updateNavBtns(); }
       });
-    } catch(e) {
-      console.warn('[HPSchool] Live sync unavailable, running in offline mode:', e.message);
-    }
+    } catch(e) { console.warn('[HPSchool] Student sync unavailable:', e.message); }
   }
 }
 
@@ -3222,26 +3222,25 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
 ═══════════════════════════════════════════════════════ */
 (async () => {
   if (!_fbReady) {
-    console.warn('[HPSchool] Firebase not available — running in offline mode');
-    // Show a soft warning but do NOT block login — DEFAULT_USERS will be used
+    toast('⚠ Cannot connect to Firebase. Check your internet connection.', 'err');
+    // Show a warning on the login card
     const card = document.querySelector('.login-card');
     if (card) {
       const warn = document.createElement('div');
-      warn.style.cssText = 'background:rgba(245,166,35,.08);border:1.5px solid rgba(245,166,35,.25);border-radius:5px;padding:9px 12px;font-size:12px;color:var(--amber);margin-bottom:12px;text-align:center';
-      warn.textContent = '⚠ Offline mode — progress will not be saved. Contact your teacher.';
+      warn.style.cssText = 'background:rgba(245,85,90,.08);border:1.5px solid rgba(245,85,90,.25);border-radius:5px;padding:9px 12px;font-size:12px;color:var(--red);margin-bottom:12px;text-align:center';
+      warn.textContent = '⚠ No database connection. Please check your internet and reload.';
       card.insertBefore(warn, card.firstChild);
     }
-    // Don't return — still allow login with DEFAULT_USERS below
+    return;
+  }
+  // Seed is best-effort — failure is non-fatal, login still works via DEFAULT_USERS
+  try { await seedIfEmpty(); } catch(e) {
+    console.warn('[HPSchool] Seed failed (will use built-in user list):', e.code || e.message);
   }
   try {
-    await seedIfEmpty();
-    // Apply saved theme
     const themeSnap = await fbGet('theme');
     applyTheme(themeSnap.exists() ? themeSnap.val() : 'dark');
-  } catch(e) {
-    console.error('[HPSchool] Bootstrap error:', e);
-    toast('Error loading data. Please reload the page.', 'err');
-  }
+  } catch(e) { applyTheme('dark'); }
 })();
 
 </script>
