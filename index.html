@@ -768,11 +768,29 @@ const Security = (() => {
     if (typeof str !== 'string') return '';
     return str.replace(/\0/g,'').trim().slice(0, maxLen);
   }
-  function createSession()  { _sessionToken = Math.random().toString(36).slice(2)+Date.now(); return _sessionToken; }
+  const SESSION_KEY = 'hpschool_session';
+  function createSession()  {
+    _sessionToken = Math.random().toString(36).slice(2)+Date.now();
+    return _sessionToken;
+  }
   function validateSession(){ return _sessionToken !== null; }
-  function clearSession()   { _sessionToken = null; }
+  function clearSession()   {
+    _sessionToken = null;
+    try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+  }
+  // Persist the logged-in user to localStorage so refresh/tab-close doesn't log them out
+  function savePersistedUser(userObj) {
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(userObj)); } catch(e) {}
+  }
+  // Returns the saved user object, or null if nothing is stored
+  function loadPersistedUser() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch(e) { return null; }
+  }
 
-  return { canAttempt, recordFail, recordSuccess, getLockRemaining, esc, sanitize, createSession, validateSession, clearSession };
+  return { canAttempt, recordFail, recordSuccess, getLockRemaining, esc, sanitize, createSession, validateSession, clearSession, savePersistedUser, loadPersistedUser };
 })();
 
 /* ═══════════════════════════════════════════════════════
@@ -947,6 +965,7 @@ window.doLogin = async function() {
       Security.recordSuccess(u);
       Security.createSession();
       curUser = { uid: matchedUser.uid, name: matchedUser.name, username: u, isAdmin:true, isSuperAdmin: !!matchedUser.isSuperAdmin };
+      Security.savePersistedUser(curUser);
       logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
       showPg('pg-admin');
       startAdminLiveSync();
@@ -967,6 +986,7 @@ window.doLogin = async function() {
       Security.recordSuccess(u);
       Security.createSession();
       curUser = { uid: matchedUser.uid, name: matchedUser.name, username: matchedUser.username, isAdmin:false };
+      Security.savePersistedUser(curUser);
       // Update lastAccess in Firebase (best-effort)
       if (!matchedUser.progress) matchedUser.progress = dp();
       matchedUser.progress.lastAccess = new Date().toISOString();
@@ -3230,21 +3250,91 @@ document.getElementById('loginP').addEventListener('keydown',e=>{ if(e.key==='En
 document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('loginP').focus(); });
 
 /* ═══════════════════════════════════════════════════════
-   BOOTSTRAP — seed data then apply theme
+   BOOTSTRAP — restore session, seed data, apply theme
+   Order of operations:
+   1. Apply theme immediately (no flicker)
+   2. Seed Firebase if first ever load
+   3. If a persisted session exists in localStorage, re-hydrate
+      the user from Firebase and resume straight into the app —
+      no login screen shown.
+   4. If no session, show the login page as normal.
 ═══════════════════════════════════════════════════════ */
 (async () => {
-  // Bootstrap is best-effort — login always works via DEFAULT_USERS even if Firebase is down
+  // Apply theme immediately so there's no white flash
   if (_fbReady) {
-    try { await seedIfEmpty(); } catch(e) {
-      console.warn('[HPSchool] Seed failed (will use built-in user list):', e.code || e.message);
-    }
     try {
       const themeSnap = await fbGet('theme');
       applyTheme(themeSnap.exists() ? themeSnap.val() : 'dark');
     } catch(e) { applyTheme('dark'); }
   } else {
     applyTheme('dark');
+  }
+
+  // Seed on first ever load (best-effort, non-blocking for login)
+  if (_fbReady) {
+    try { await seedIfEmpty(); }
+    catch(e) { console.warn('[HPSchool] Seed failed:', e.code || e.message); }
+  } else {
     console.warn('[HPSchool] Firebase not ready — running in offline mode');
+  }
+
+  // ── Session restore ───────────────────────────────────
+  const saved = Security.loadPersistedUser();
+  if (!saved || !saved.uid) return; // no saved session → stay on login page
+
+  // We have a saved session. Re-verify the user still exists and is active in Firebase.
+  try {
+    let userData = null;
+
+    if (_fbReady) {
+      const snap = await fbGet(`users/${saved.uid}`);
+      if (snap.exists()) userData = { uid: saved.uid, ...snap.val() };
+    }
+
+    // Fall back to DEFAULT_USERS if Firebase is unavailable (offline scenario)
+    if (!userData) {
+      const local = DEFAULT_USERS.find(u => u.uid === saved.uid);
+      if (local) userData = { ...local };
+    }
+
+    // Abort restore if user no longer exists or has been deactivated
+    if (!userData) {
+      Security.clearSession();
+      console.log('[HPSchool] Saved session user no longer exists — showing login.');
+      return;
+    }
+    if (userData.role === 'student' && userData.active === false) {
+      Security.clearSession();
+      console.log('[HPSchool] Saved session user is deactivated — showing login.');
+      return;
+    }
+
+    // All good — restore the session silently
+    Security.createSession();
+    curUser = {
+      uid:         saved.uid,
+      name:        userData.name        || saved.name,
+      username:    userData.username    || saved.username,
+      isAdmin:     saved.isAdmin        || false,
+      isSuperAdmin:saved.isSuperAdmin   || false
+    };
+    // Keep localStorage in sync with latest name/username from Firebase
+    Security.savePersistedUser(curUser);
+
+    if (curUser.isAdmin) {
+      showPg('pg-admin');
+      startAdminLiveSync();
+      renderAdm();
+    } else {
+      showPg('pg-app');
+      startStudentLiveSync(saved.uid, userData);
+    }
+
+    console.log(`[HPSchool] Session restored for "${curUser.name}"`);
+  } catch(e) {
+    // Network error during restore — still safe to show login rather than crash
+    console.warn('[HPSchool] Session restore failed, showing login:', e.message);
+    Security.clearSession();
   }
 })();
 
