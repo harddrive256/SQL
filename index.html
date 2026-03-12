@@ -812,20 +812,15 @@ function dp() {
   return { unlocked:[0], completed:[], exResults:{}, practiseScore:null, practisePassed:false, lastAccess:null };
 }
 
-// Firebase stores JS arrays as objects {0:val, 1:val} — this converts them back
+// Firebase stores JS arrays as objects {0:0, 1:1} — convert back to real arrays
 function normalizeProgress(prog) {
   if (!prog) return dp();
-  // Convert unlocked: Firebase may return {0:0, 1:1} instead of [0,1]
-  if (prog.unlocked && !Array.isArray(prog.unlocked)) {
+  if (prog.unlocked && !Array.isArray(prog.unlocked))
     prog.unlocked = Object.values(prog.unlocked).map(Number);
-  }
-  if (!Array.isArray(prog.unlocked) || prog.unlocked.length === 0) prog.unlocked = [0];
-  // Convert completed
-  if (prog.completed && !Array.isArray(prog.completed)) {
+  if (!Array.isArray(prog.unlocked) || !prog.unlocked.length) prog.unlocked = [0];
+  if (prog.completed && !Array.isArray(prog.completed))
     prog.completed = Object.values(prog.completed).map(Number);
-  }
   if (!Array.isArray(prog.completed)) prog.completed = [];
-  // exResults should be a plain object — fine as-is from Firebase
   if (!prog.exResults || typeof prog.exResults !== 'object') prog.exResults = {};
   return prog;
 }
@@ -871,18 +866,16 @@ const DEFAULT_USERS = [
 async function seedIfEmpty() {
   const snap = await fbGet('users');
   if (snap.exists()) {
-    // DB has data — repair any partial/broken records
     const existing = snap.val();
     const repairs = {};
     DEFAULT_USERS.forEach(u => {
       const rec = existing[u.uid];
       if (!rec || !rec.role || !rec.username) {
         const entry = { ...u };
-        if (u.role === 'student') {
+        if (u.role === 'student')
           entry.progress = rec && rec.progress ? normalizeProgress(rec.progress) : dp();
-        }
         repairs[u.uid] = entry;
-        console.log('[HPSchool] Repairing record:', u.uid, u.username);
+        console.log('[HPSchool] Repairing:', u.uid, u.username);
       }
     });
     if (Object.keys(repairs).length) {
@@ -891,7 +884,7 @@ async function seedIfEmpty() {
     }
     return;
   }
-  console.log('[HPSchool] Seeding initial data…');
+  console.log('[HPSchool] Seeding…');
   const updates = {};
   DEFAULT_USERS.forEach(u => {
     const entry = { ...u };
@@ -1153,24 +1146,20 @@ function startAdminLiveSync() {
 
 function startStudentLiveSync(uid, initialData) {
   try {
-    // Normalize progress before putting in cache (fixes Firebase array→object conversion)
     if (initialData.progress) initialData.progress = normalizeProgress(initialData.progress);
     _usersCache[uid] = { uid, ...initialData };
     initApp(initialData);
   } catch(e) {
     console.error('[HPSchool] initApp error:', e);
-    // Still set up the cache so the student isn't stuck
     _usersCache[uid] = { uid, ...initialData, progress: dp() };
     try { initApp({ ...initialData, progress: dp() }); } catch(e2) {}
   }
-
   if (_studentUnsubscribe) { try{_studentUnsubscribe();}catch(e){} }
   if (_fbReady) {
     try {
       _studentUnsubscribe = fbSub(`users/${uid}`, snap => {
         if (!snap.exists()) return;
         const updated = { uid, ...snap.val() };
-        // Normalize arrays from Firebase
         if (updated.progress) updated.progress = normalizeProgress(updated.progress);
         _usersCache[uid] = updated;
         const appActive = document.getElementById('pg-app').classList.contains('active');
@@ -1208,8 +1197,11 @@ function saveProg() {
    ACTIVITY LOG  (Firebase list)
 ═══════════════════════════════════════════════════════ */
 function logAct(msg, color='') {
-  if (!_fbReady) return; // offline — silently skip
-  try { fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() }).catch(()=>{}); } catch(e) {}
+  if (!_fbReady) { console.warn('[HPSchool] logAct skipped — Firebase not ready'); return; }
+  try {
+    fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() })
+      .catch(e => console.error('[HPSchool] logAct write failed:', e));
+  } catch(e) { console.error('[HPSchool] logAct error:', e); }
 }
 
 // ── Live actLog listener ─────────────────────────────
@@ -1225,7 +1217,7 @@ function startActLogSync() {
       if (snap.exists()) {
         snap.forEach(child => _actLogCache.push(child.val()));
         _actLogCache.reverse();
-        if (_actLogCache.length > 100) _actLogCache = _actLogCache.slice(0, 100);
+        if (_actLogCache.length > 100) _actLogCache = _actLogCache.slice(0,100);
       }
       const adminActive = document.getElementById('pg-admin').classList.contains('active');
       if (adminActive && curUser && curUser.isAdmin) {
