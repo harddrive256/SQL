@@ -420,7 +420,7 @@ tr.stu-inactive td{opacity:.55}
 </button>
 
 <!-- ══════════ LOGIN ══════════ -->
-<div class="page active" id="pg-login">
+<div class="page" id="pg-login">
   <div class="login-wrap">
     <div class="login-card">
       <div class="login-head">
@@ -968,8 +968,7 @@ window.doLogin = async function() {
       Security.savePersistedUser(curUser);
       logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
       showPg('pg-admin');
-      startAdminLiveSync();
-      renderAdm();
+      startAdminLiveSync(); // fires fbSub immediately which calls renderAdm()
       if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
       return;
     }
@@ -1091,11 +1090,13 @@ function requireSession() {
 ═══════════════════════════════════════════════════════ */
 function startAdminLiveSync() {
   if (_adminUnsubscribe) { try{_adminUnsubscribe();}catch(e){} }
-  // Seed cache from DEFAULT_USERS immediately so admin sees data even if Firebase is slow
+  // Pre-fill cache with DEFAULT_USERS so admin panel renders instantly
   if (!Object.keys(_usersCache).length) {
     DEFAULT_USERS.forEach(u => { _usersCache[u.uid] = { ...u }; });
   }
-  if (!_fbReady) return; // Firebase unavailable — use built-in cache only
+  // Render immediately with whatever is in cache right now
+  renderAdm();
+  if (!_fbReady) return;
   try {
     _adminUnsubscribe = fbSub('users', snap => {
       _usersCache = {};
@@ -1103,6 +1104,7 @@ function startAdminLiveSync() {
         const usersObj = snap.val();
         for (const uid in usersObj) _usersCache[uid] = { uid, ...usersObj[uid] };
       }
+      // Only re-render if admin panel is currently visible
       const adminActive = document.getElementById('pg-admin').classList.contains('active');
       if (adminActive && curUser && curUser.isAdmin) renderAdm();
     });
@@ -1164,8 +1166,9 @@ function logAct(msg, color='') {
 // Read actLog once for display (admin panel only)
 async function getActLog(limit=100) {
   try {
-    const snap = await fbGet('actLog');
-    if (!snap.exists()) return [];
+    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 5000));
+    const snap = await Promise.race([fbGet('actLog'), timeout]);
+    if (!snap || !snap.exists()) return [];
     const entries = [];
     snap.forEach(child => entries.push(child.val()));
     return entries.reverse().slice(0, limit);
@@ -2643,7 +2646,8 @@ function admOverview(body) {
   const passed = stus.filter(s=>s.progress&&s.progress.practisePassed).length;
   const fin    = stus.filter(s=>s.progress&&s.progress.completed&&s.progress.completed.length>=4).length;
 
-  // Render immediately with cached log from previous fetch, then update async
+  // Use a render token so stale async callbacks from a previous render don't overwrite a newer one
+  const token = Date.now();
   body.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-n">${total}</div><div class="stat-l">Total Students</div></div>
@@ -2653,11 +2657,13 @@ function admOverview(body) {
     </div>
     <div class="dtw">
       <div class="dth"><span class="dth-ttl">📋 Recent Activity</span></div>
-      <div id="actLogBody" style="padding:14px 16px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div>
+      <div id="actLogBody" data-token="${token}" style="padding:14px 16px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div>
     </div>`;
 
   getActLog(15).then(logs => {
-    const el = document.getElementById('actLogBody'); if (!el) return;
+    const el = document.getElementById('actLogBody');
+    // Ignore if the DOM has been replaced by a newer render
+    if (!el || el.dataset.token != token) return;
     el.innerHTML = logs.length
       ? logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
       : '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>';
@@ -3275,8 +3281,7 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
 
     if (curUser.isAdmin) {
       showPg('pg-admin');
-      startAdminLiveSync();  // populates cache from Firebase in background
-      renderAdm();
+      startAdminLiveSync();  // fires fbSub immediately which calls renderAdm()
     } else {
       // Use saved data to start the app instantly, then Firebase live sync
       // will update the cache and re-render once it arrives.
@@ -3322,6 +3327,9 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
     }
     console.log(`[HPSchool] Session restored for "${curUser.name}"`);
   }
+
+  // ── If no saved session, show the login page now ──
+  if (!saved || !saved.uid) showPg('pg-login');
 
   // ── STEP 2: Theme + seed — background tasks, don't block anything ──
   applyTheme('dark'); // instant default, overwritten by Firebase below
