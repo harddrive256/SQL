@@ -812,6 +812,24 @@ function dp() {
   return { unlocked:[0], completed:[], exResults:{}, practiseScore:null, practisePassed:false, lastAccess:null };
 }
 
+// Firebase stores JS arrays as objects {0:val, 1:val} — this converts them back
+function normalizeProgress(prog) {
+  if (!prog) return dp();
+  // Convert unlocked: Firebase may return {0:0, 1:1} instead of [0,1]
+  if (prog.unlocked && !Array.isArray(prog.unlocked)) {
+    prog.unlocked = Object.values(prog.unlocked).map(Number);
+  }
+  if (!Array.isArray(prog.unlocked) || prog.unlocked.length === 0) prog.unlocked = [0];
+  // Convert completed
+  if (prog.completed && !Array.isArray(prog.completed)) {
+    prog.completed = Object.values(prog.completed).map(Number);
+  }
+  if (!Array.isArray(prog.completed)) prog.completed = [];
+  // exResults should be a plain object — fine as-is from Firebase
+  if (!prog.exResults || typeof prog.exResults !== 'object') prog.exResults = {};
+  return prog;
+}
+
 /* ═══════════════════════════════════════════════════════
    FIREBASE DATA SEEDING
    On first ever load, writes the default 28 students
@@ -853,24 +871,18 @@ const DEFAULT_USERS = [
 async function seedIfEmpty() {
   const snap = await fbGet('users');
   if (snap.exists()) {
-    // DB has data — repair any partial/broken records from past race conditions
+    // DB has data — repair any partial/broken records
     const existing = snap.val();
     const repairs = {};
     DEFAULT_USERS.forEach(u => {
       const rec = existing[u.uid];
       if (!rec || !rec.role || !rec.username) {
-        // Missing or partial record — rebuild it, preserving any existing progress
         const entry = { ...u };
         if (u.role === 'student') {
-          const existingProgress = rec && rec.progress;
-          entry.progress = existingProgress || dp();
-          // Ensure progress is valid
-          if (!Array.isArray(entry.progress.unlocked) || !entry.progress.unlocked.length) entry.progress.unlocked = [0];
-          if (!Array.isArray(entry.progress.completed)) entry.progress.completed = [];
-          if (!entry.progress.exResults) entry.progress.exResults = {};
+          entry.progress = rec && rec.progress ? normalizeProgress(rec.progress) : dp();
         }
         repairs[u.uid] = entry;
-        console.log('[HPSchool] Repairing record for', u.uid, u.username);
+        console.log('[HPSchool] Repairing record:', u.uid, u.username);
       }
     });
     if (Object.keys(repairs).length) {
@@ -879,7 +891,6 @@ async function seedIfEmpty() {
     }
     return;
   }
-  // Completely empty — full seed
   console.log('[HPSchool] Seeding initial data…');
   const updates = {};
   DEFAULT_USERS.forEach(u => {
@@ -1013,30 +1024,12 @@ window.doLogin = async function() {
       Security.createSession();
       curUser = { uid: matchedUser.uid, name: matchedUser.name, username: matchedUser.username, isAdmin:false };
       Security.savePersistedUser(curUser);
-      if (_fbReady) {
-        try {
-          // Ensure a full, valid record exists in Firebase before writing anything
-          const existSnap = await fbGet(`users/${matchedUser.uid}`);
-          const existRec = existSnap.exists() ? existSnap.val() : null;
-          if (!existRec || !existRec.role || !existRec.username) {
-            // Missing or partial — write the full record
-            const fullRec = { ...matchedUser };
-            if (!fullRec.progress || !Array.isArray(fullRec.progress.unlocked)) fullRec.progress = dp();
-            await fbSet(`users/${matchedUser.uid}`, fullRec);
-            matchedUser = { ...fullRec }; // use the repaired version
-            console.log('[HPSchool] Wrote full record for', matchedUser.uid);
-          } else {
-            // Record exists — use it (has real progress data)
-            matchedUser = { uid: matchedUser.uid, ...existRec };
-          }
-        } catch(e) { console.warn('[HPSchool] Record check failed:', e.message); }
-      }
-      // Update lastAccess
-      if (!matchedUser.progress || !Array.isArray(matchedUser.progress.unlocked)) matchedUser.progress = dp();
+      // Update lastAccess in Firebase (best-effort)
+      if (!matchedUser.progress) matchedUser.progress = dp();
       matchedUser.progress.lastAccess = new Date().toISOString();
       try {
         await fbUpd(`users/${matchedUser.uid}/progress`, { lastAccess: matchedUser.progress.lastAccess });
-      } catch(e) { console.warn('[HPSchool] lastAccess write failed:', e.message); }
+      } catch(e) { /* non-fatal — offline or DB not seeded yet */ }
       logAct(`Student "${Security.esc(matchedUser.name)}" logged in`, 'g');
       showPg('pg-app');
       startStudentLiveSync(matchedUser.uid, matchedUser);
@@ -1159,17 +1152,26 @@ function startAdminLiveSync() {
 }
 
 function startStudentLiveSync(uid, initialData) {
-  // Populate cache with the student's own data
-  _usersCache[uid] = { uid, ...initialData };
-  initApp(initialData);
+  try {
+    // Normalize progress before putting in cache (fixes Firebase array→object conversion)
+    if (initialData.progress) initialData.progress = normalizeProgress(initialData.progress);
+    _usersCache[uid] = { uid, ...initialData };
+    initApp(initialData);
+  } catch(e) {
+    console.error('[HPSchool] initApp error:', e);
+    // Still set up the cache so the student isn't stuck
+    _usersCache[uid] = { uid, ...initialData, progress: dp() };
+    try { initApp({ ...initialData, progress: dp() }); } catch(e2) {}
+  }
 
   if (_studentUnsubscribe) { try{_studentUnsubscribe();}catch(e){} }
-  // Listen for live changes — best-effort, not required for login to work
   if (_fbReady) {
     try {
       _studentUnsubscribe = fbSub(`users/${uid}`, snap => {
         if (!snap.exists()) return;
         const updated = { uid, ...snap.val() };
+        // Normalize arrays from Firebase
+        if (updated.progress) updated.progress = normalizeProgress(updated.progress);
         _usersCache[uid] = updated;
         const appActive = document.getElementById('pg-app').classList.contains('active');
         if (appActive && curUser && !curUser.isAdmin) { renderSB(); updateNavBtns(); }
@@ -1185,13 +1187,7 @@ function getStu() { return _usersCache[curUser.uid] || null; }
 function getProg() {
   const s = getStu();
   if (!s) return dp();
-  if (!s.progress) s.progress = dp();
-  // Ensure unlocked always has at least lesson 0 — guards against corrupt/partial records
-  if (!Array.isArray(s.progress.unlocked) || s.progress.unlocked.length === 0) {
-    s.progress.unlocked = [0];
-  }
-  if (!Array.isArray(s.progress.completed)) s.progress.completed = [];
-  if (!s.progress.exResults || typeof s.progress.exResults !== 'object') s.progress.exResults = {};
+  s.progress = normalizeProgress(s.progress);
   return s.progress;
 }
 
