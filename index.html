@@ -832,8 +832,7 @@ const DEFAULT_USERS = [
   { uid:'s25', role:'student', name:'ABIGAIL AGASHA',            username:'aa',  password:'aa123',  active:true },
   { uid:'s26', role:'student', name:'JASON APORU',               username:'ja',  password:'ja123',  active:true },
   { uid:'s27', role:'student', name:'JORJA LOGOSE',              username:'jl',  password:'jl123',  active:true },
-  { uid:'s28', role:'student', name:'SHAMMAH RUHINDA',           username:'sr',  password:'sr123',  active:true },
-  { uid:'s29', role:'student', name:'DEMO CHILD',           username:'dm',  password:'dm123',  active:true }
+  { uid:'s28', role:'student', name:'SHAMMAH RUHINDA',           username:'sr',  password:'sr123',  active:true }
 ];
 
 async function seedIfEmpty() {
@@ -1072,16 +1071,22 @@ function requireSession() {
 ═══════════════════════════════════════════════════════ */
 function startAdminLiveSync() {
   if (_adminUnsubscribe) { try{_adminUnsubscribe();}catch(e){} }
-  _adminUnsubscribe = fbSub('users', snap => {
-    _usersCache = {};
-    if (snap.exists()) {
-      const usersObj = snap.val();
-      for (const uid in usersObj) _usersCache[uid] = { uid, ...usersObj[uid] };
-    }
-    // Re-render admin dashboard section if currently on admin page
-    const adminActive = document.getElementById('pg-admin').classList.contains('active');
-    if (adminActive && curUser && curUser.isAdmin) renderAdm();
-  });
+  // Seed cache from DEFAULT_USERS immediately so admin sees data even if Firebase is slow
+  if (!Object.keys(_usersCache).length) {
+    DEFAULT_USERS.forEach(u => { _usersCache[u.uid] = { ...u }; });
+  }
+  if (!_fbReady) return; // Firebase unavailable — use built-in cache only
+  try {
+    _adminUnsubscribe = fbSub('users', snap => {
+      _usersCache = {};
+      if (snap.exists()) {
+        const usersObj = snap.val();
+        for (const uid in usersObj) _usersCache[uid] = { uid, ...usersObj[uid] };
+      }
+      const adminActive = document.getElementById('pg-admin').classList.contains('active');
+      if (adminActive && curUser && curUser.isAdmin) renderAdm();
+    });
+  } catch(e) { console.warn('[HPSchool] Admin sync unavailable:', e.message); }
 }
 
 function startStudentLiveSync(uid, initialData) {
@@ -1132,8 +1137,8 @@ function saveProg() {
    ACTIVITY LOG  (Firebase list)
 ═══════════════════════════════════════════════════════ */
 function logAct(msg, color='') {
-  if (!_fbReady) return;
-  fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() }).catch(()=>{});
+  if (!_fbReady) return; // offline — silently skip
+  try { fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() }).catch(()=>{}); } catch(e) {}
 }
 
 // Read actLog once for display (admin panel only)
@@ -2818,7 +2823,8 @@ window.saveAdmCreds = async function() {
   if (others.length) { toast('Username already taken.','err'); return; }
   const updates = { username: u };
   if (p1) updates.password = p1;
-  await fbUpd(`users/${curUser.uid}`, updates);
+  try { await fbUpd(`users/${curUser.uid}`, updates); }
+  catch(e) { toast('Could not save — check your connection.','err'); return; }
   curUser.username = u;
   toast('Credentials updated!');
   logAct(`Admin "${Security.esc(u)}" updated their credentials`,'');
@@ -2833,7 +2839,8 @@ window.addStu = async function() {
   if (pass.length<4) { toast('Password must be at least 4 characters.','err'); return; }
   if (allUsernames().includes(user)) { toast('Username already taken.','err'); return; }
   const uid = 's'+Date.now();
-  await fbSet(`users/${uid}`, { uid, role:'student', name, username:user, password:pass, active:true, progress:dp() });
+  try { await fbSet(`users/${uid}`, { uid, role:'student', name, username:user, password:pass, active:true, progress:dp() }); }
+  catch(e) { toast('Could not save student — check your connection.','err'); return; }
   closeM('mAddStu');
   ['aName','aUser','aPass'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   toast(`"${Security.esc(name)}" added!`);
@@ -2860,7 +2867,8 @@ window.saveEditStu = async function() {
   if (np&&np.length<4) { toast('Password must be at least 4 characters.','err'); return; }
   const updates = { name:nn, username:nu };
   if (np) updates.password = np;
-  await fbUpd(`users/${uid}`, updates);
+  try { await fbUpd(`users/${uid}`, updates); }
+  catch(e) { toast('Could not save — check your connection.','err'); return; }
   closeM('mEditStu');
   toast('Student updated.');
   logAct(`Admin updated student "${Security.esc(nn)}"`, 'b');
@@ -2869,7 +2877,8 @@ window.saveEditStu = async function() {
 window.delStu = async function(uid) {
   const s = findUser(uid); if (!s) return;
   if (!confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
-  await fbDel(`users/${uid}`);
+  try { await fbDel(`users/${uid}`); }
+  catch(e) { toast('Could not delete — check your connection.','err'); return; }
   toast(`"${Security.esc(s.name)}" deleted.`, 'warn');
   logAct(`Admin deleted student "${Security.esc(s.name)}"`, 'r');
 };
@@ -2877,7 +2886,8 @@ window.delStu = async function(uid) {
 window.rstStu = async function(uid) {
   const s = findUser(uid); if (!s) return;
   if (!confirm(`Reset all progress for "${s.name}"? This cannot be undone.`)) return;
-  await fbSet(`users/${uid}/progress`, dp());
+  try { await fbSet(`users/${uid}/progress`, dp()); }
+  catch(e) { toast('Could not reset — check your connection.','err'); return; }
   toast(`Progress reset for ${Security.esc(s.name)}.`);
   logAct(`Admin reset progress for "${Security.esc(s.name)}"`, '');
 };
@@ -2886,7 +2896,8 @@ window.unlkAll = async function(uid) {
   const s = findUser(uid); if (!s) return;
   const prog = s.progress || dp();
   prog.unlocked = [0,1,2,3,4];
-  await fbSet(`users/${uid}/progress`, prog);
+  try { await fbSet(`users/${uid}/progress`, prog); }
+  catch(e) { toast('Could not unlock — check your connection.','err'); return; }
   toast(`All lessons unlocked for ${Security.esc(s.name)}.`);
   logAct(`Admin unlocked all lessons for "${Security.esc(s.name)}"`, 'b');
 };
@@ -3222,26 +3233,19 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
    BOOTSTRAP — seed data then apply theme
 ═══════════════════════════════════════════════════════ */
 (async () => {
-  if (!_fbReady) {
-    toast('⚠ Cannot connect to Firebase. Check your internet connection.', 'err');
-    // Show a warning on the login card
-    const card = document.querySelector('.login-card');
-    if (card) {
-      const warn = document.createElement('div');
-      warn.style.cssText = 'background:rgba(245,85,90,.08);border:1.5px solid rgba(245,85,90,.25);border-radius:5px;padding:9px 12px;font-size:12px;color:var(--red);margin-bottom:12px;text-align:center';
-      warn.textContent = '⚠ No database connection. Please check your internet and reload.';
-      card.insertBefore(warn, card.firstChild);
+  // Bootstrap is best-effort — login always works via DEFAULT_USERS even if Firebase is down
+  if (_fbReady) {
+    try { await seedIfEmpty(); } catch(e) {
+      console.warn('[HPSchool] Seed failed (will use built-in user list):', e.code || e.message);
     }
-    return;
+    try {
+      const themeSnap = await fbGet('theme');
+      applyTheme(themeSnap.exists() ? themeSnap.val() : 'dark');
+    } catch(e) { applyTheme('dark'); }
+  } else {
+    applyTheme('dark');
+    console.warn('[HPSchool] Firebase not ready — running in offline mode');
   }
-  // Seed is best-effort — failure is non-fatal, login still works via DEFAULT_USERS
-  try { await seedIfEmpty(); } catch(e) {
-    console.warn('[HPSchool] Seed failed (will use built-in user list):', e.code || e.message);
-  }
-  try {
-    const themeSnap = await fbGet('theme');
-    applyTheme(themeSnap.exists() ? themeSnap.val() : 'dark');
-  } catch(e) { applyTheme('dark'); }
 })();
 
 </script>
