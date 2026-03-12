@@ -669,7 +669,10 @@ tr.stu-inactive td{opacity:.55}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script type="module">
+<!-- Firebase compat SDK — loaded from cdnjs (same CDN as sql.js/jsPDF above) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.23.0/firebase-database-compat.min.js"></script>
+<script>
 'use strict';
 
 /* ═══════════════════════════════════════════════════════
@@ -677,9 +680,6 @@ tr.stu-inactive td{opacity:.55}
    All users (students + admins), progress, and logs
    live here so every device sees the same data in real time.
 ═══════════════════════════════════════════════════════ */
-import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getDatabase, ref, set, get, update, remove, onValue, push, serverTimestamp }
-  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
 
 const FB_CONFIG = {
   apiKey:            "AIzaSyAHzOFMSjWelS2llpZVh4Ts83mD9qe10m4",
@@ -692,37 +692,34 @@ const FB_CONFIG = {
 };
 
 // ── NOTE FOR DEPLOYMENT ──────────────────────────────────────────────────────
-// This app uses the Game Night Firebase project as a temporary backend.
 // For production, create a dedicated Firebase project at console.firebase.google.com
 // and replace FB_CONFIG above. Set Realtime Database rules to:
-//   { "rules": { ".read": true, ".write": true } }  ← development only
-//   Then tighten with proper auth rules before going live.
+//   { "rules": { ".read": true, ".write": true } }
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FB_ROOT  = 'hpschool'; // namespace under which all data lives
-let _app, _db;
-let _fbReady   = false;
-let _fbError   = null;
+const FB_ROOT = 'hpschool';
+let _db;
+let _fbReady = false;
 
 try {
-  _app     = initializeApp(FB_CONFIG, 'hpschool-app');
-  _db      = getDatabase(_app);
+  if (typeof firebase === 'undefined') throw new Error('Firebase SDK did not load — check internet connection.');
+  if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+  _db      = firebase.database();
   _fbReady = true;
   console.log('[HPSchool] Firebase ready');
 } catch(e) {
-  _fbError = e.message;
-  console.error('[HPSchool] Firebase init error:', e);
+  console.error('[HPSchool] Firebase init error:', e.message);
 }
 
-// Thin helpers
-const fbRef  = path => ref(_db, `${FB_ROOT}/${path}`);
-const fbGet  = path => get(fbRef(path));
-const fbSet  = (path, val) => set(fbRef(path), val);
-const fbUpd  = (path, val) => update(fbRef(path), val);
-const fbDel  = path => remove(fbRef(path));
-const fbSub  = (path, cb) => onValue(fbRef(path), cb);
-const fbPush = (path, val) => push(fbRef(path), { ...val, ts: serverTimestamp() });
-const fbKey  = s => String(s).replace(/[.#$\[\]\/]/g, '_'); // safe Firebase key
+// Thin helpers — compat SDK style
+const fbRef  = path => _db.ref(`${FB_ROOT}/${path}`);
+const fbGet  = path => fbRef(path).get();
+const fbSet  = (path, val) => fbRef(path).set(val);
+const fbUpd  = (path, val) => fbRef(path).update(val);
+const fbDel  = path => fbRef(path).remove();
+const fbSub  = (path, cb) => { fbRef(path).on('value', cb); return () => fbRef(path).off('value', cb); };
+const fbPush = (path, val) => fbRef(path).push({ ...val, ts: firebase.database.ServerValue.TIMESTAMP });
+const fbKey  = s => String(s).replace(/[.#$\[\]\/]/g, '_');
 
 
 /* ═══════════════════════════════════════════════════════
@@ -935,27 +932,30 @@ window.doLogin = async function() {
   // Note: even if _fbReady is false, we continue and try DEFAULT_USERS below
 
   try {
-    // Find user — try Firebase, then always fall back to DEFAULT_USERS
+    // Find user — try Firebase with a 5s timeout, then always fall back to DEFAULT_USERS
     let matchedUser = null;
 
-    // Try Firebase first
     if (_fbReady) {
       try {
-        const snap = await fbGet('users');
-        if (snap.exists()) {
+        // Race Firebase against a 5-second timeout so login never hangs
+        const fbPromise = fbGet('users').then(snap => {
+          if (!snap.exists()) return null;
           const usersObj = snap.val();
           for (const uid in usersObj) {
             const u2 = usersObj[uid];
-            if (u2.username === u && u2.password === p) { matchedUser = { uid, ...u2 }; break; }
+            if (u2.username === u && u2.password === p) return { uid, ...u2 };
           }
-        }
+          return null;
+        });
+        const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 5000));
+        matchedUser = await Promise.race([fbPromise, timeoutPromise]);
       } catch(fbErr) {
         console.warn('[HPSchool] Firebase read failed:', fbErr.code || fbErr.message);
       }
     }
 
-    // ALWAYS fallback to DEFAULT_USERS if Firebase didn't find them
-    // This covers: empty DB, rules not set, no internet, seeding not run yet
+    // ALWAYS fall back to DEFAULT_USERS if Firebase didn't find them or timed out
+    // This covers: rules not set, empty DB, no internet, seeding not run yet
     if (!matchedUser) {
       const local = DEFAULT_USERS.find(u2 => u2.username === u && u2.password === p);
       if (local) matchedUser = { ...local };
@@ -3250,92 +3250,92 @@ document.getElementById('loginP').addEventListener('keydown',e=>{ if(e.key==='En
 document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('loginP').focus(); });
 
 /* ═══════════════════════════════════════════════════════
-   BOOTSTRAP — restore session, seed data, apply theme
-   Order of operations:
-   1. Apply theme immediately (no flicker)
-   2. Seed Firebase if first ever load
-   3. If a persisted session exists in localStorage, re-hydrate
-      the user from Firebase and resume straight into the app —
-      no login screen shown.
-   4. If no session, show the login page as normal.
+   BOOTSTRAP — restore session first, then seed / theme
+   Critical order:
+   1. Check localStorage for a saved session SYNCHRONOUSLY
+      and restore it immediately — zero delay, no awaits.
+      This means a logged-in user never sees the login page.
+   2. Then seed Firebase and apply theme in the background.
 ═══════════════════════════════════════════════════════ */
 (async () => {
-  // Apply theme immediately so there's no white flash
+
+  // ── STEP 1: Session restore — happens synchronously, no Firebase needed ──
+  const saved = Security.loadPersistedUser();
+  if (saved && saved.uid) {
+    // Restore immediately using the data we already have in localStorage.
+    // This gets the user into the app with zero delay.
+    Security.createSession();
+    curUser = {
+      uid:          saved.uid,
+      name:         saved.name,
+      username:     saved.username,
+      isAdmin:      saved.isAdmin      || false,
+      isSuperAdmin: saved.isSuperAdmin || false
+    };
+
+    if (curUser.isAdmin) {
+      showPg('pg-admin');
+      startAdminLiveSync();  // populates cache from Firebase in background
+      renderAdm();
+    } else {
+      // Use saved data to start the app instantly, then Firebase live sync
+      // will update the cache and re-render once it arrives.
+      const tempData = { uid: saved.uid, name: saved.name, username: saved.username,
+                         role: 'student', active: true, progress: dp() };
+      _usersCache[saved.uid] = tempData;
+      showPg('pg-app');
+      initApp(tempData);
+
+      // Now fetch real data from Firebase and refresh the view
+      if (_fbReady) {
+        try {
+          const snap = await fbGet(`users/${saved.uid}`);
+          if (snap.exists()) {
+            const realData = { uid: saved.uid, ...snap.val() };
+            // Check they haven't been deactivated
+            if (realData.active === false) {
+              Security.clearSession();
+              doLogout();
+              return;
+            }
+            _usersCache[saved.uid] = realData;
+            renderSB(); updateNavBtns();
+            // Now start the live listener
+            if (_studentUnsubscribe) { try{_studentUnsubscribe();}catch(e){} }
+            _studentUnsubscribe = fbSub(`users/${saved.uid}`, snap2 => {
+              if (!snap2.exists()) return;
+              _usersCache[saved.uid] = { uid: saved.uid, ...snap2.val() };
+              const appActive = document.getElementById('pg-app').classList.contains('active');
+              if (appActive && curUser && !curUser.isAdmin) { renderSB(); updateNavBtns(); }
+            });
+          } else {
+            // User deleted from DB — log out
+            Security.clearSession();
+            doLogout();
+            return;
+          }
+        } catch(e) {
+          console.warn('[HPSchool] Could not verify session from Firebase:', e.message);
+          // Keep them logged in with cached data — don't disrupt on network error
+        }
+      }
+    }
+    console.log(`[HPSchool] Session restored for "${curUser.name}"`);
+  }
+
+  // ── STEP 2: Theme + seed — background tasks, don't block anything ──
+  applyTheme('dark'); // instant default, overwritten by Firebase below
   if (_fbReady) {
     try {
       const themeSnap = await fbGet('theme');
       applyTheme(themeSnap.exists() ? themeSnap.val() : 'dark');
-    } catch(e) { applyTheme('dark'); }
-  } else {
-    applyTheme('dark');
-  }
-
-  // Seed on first ever load (best-effort, non-blocking for login)
-  if (_fbReady) {
+    } catch(e) {}
     try { await seedIfEmpty(); }
     catch(e) { console.warn('[HPSchool] Seed failed:', e.code || e.message); }
   } else {
     console.warn('[HPSchool] Firebase not ready — running in offline mode');
   }
 
-  // ── Session restore ───────────────────────────────────
-  const saved = Security.loadPersistedUser();
-  if (!saved || !saved.uid) return; // no saved session → stay on login page
-
-  // We have a saved session. Re-verify the user still exists and is active in Firebase.
-  try {
-    let userData = null;
-
-    if (_fbReady) {
-      const snap = await fbGet(`users/${saved.uid}`);
-      if (snap.exists()) userData = { uid: saved.uid, ...snap.val() };
-    }
-
-    // Fall back to DEFAULT_USERS if Firebase is unavailable (offline scenario)
-    if (!userData) {
-      const local = DEFAULT_USERS.find(u => u.uid === saved.uid);
-      if (local) userData = { ...local };
-    }
-
-    // Abort restore if user no longer exists or has been deactivated
-    if (!userData) {
-      Security.clearSession();
-      console.log('[HPSchool] Saved session user no longer exists — showing login.');
-      return;
-    }
-    if (userData.role === 'student' && userData.active === false) {
-      Security.clearSession();
-      console.log('[HPSchool] Saved session user is deactivated — showing login.');
-      return;
-    }
-
-    // All good — restore the session silently
-    Security.createSession();
-    curUser = {
-      uid:         saved.uid,
-      name:        userData.name        || saved.name,
-      username:    userData.username    || saved.username,
-      isAdmin:     saved.isAdmin        || false,
-      isSuperAdmin:saved.isSuperAdmin   || false
-    };
-    // Keep localStorage in sync with latest name/username from Firebase
-    Security.savePersistedUser(curUser);
-
-    if (curUser.isAdmin) {
-      showPg('pg-admin');
-      startAdminLiveSync();
-      renderAdm();
-    } else {
-      showPg('pg-app');
-      startStudentLiveSync(saved.uid, userData);
-    }
-
-    console.log(`[HPSchool] Session restored for "${curUser.name}"`);
-  } catch(e) {
-    // Network error during restore — still safe to show login rather than crash
-    console.warn('[HPSchool] Session restore failed, showing login:', e.message);
-    Security.clearSession();
-  }
 })();
 
 </script>
