@@ -669,478 +669,171 @@ tr.stu-inactive td{opacity:.55}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script type="module">
+<script>
 'use strict';
 
 /* ═══════════════════════════════════════════════════════
-   FIREBASE — Realtime Database
-   All users (students + admins), progress, and logs
-   live here so every device sees the same data in real time.
-═══════════════════════════════════════════════════════ */
-import { initializeApp }          from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getDatabase, ref, set, get, update, remove, onValue, push, serverTimestamp }
-  from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js';
-
-const FB_CONFIG = {
-  apiKey:            "AIzaSyAHzOFMSjWelS2llpZVh4Ts83mD9qe10m4",
-  authDomain:        "game-night-808f1.firebaseapp.com",
-  databaseURL:       "https://game-night-808f1-default-rtdb.firebaseio.com",
-  projectId:         "game-night-808f1",
-  storageBucket:     "game-night-808f1.firebasestorage.app",
-  messagingSenderId: "730427931065",
-  appId:             "1:730427931065:web:f94ae3ac0b52bea1019e68"
-};
-
-// ── NOTE FOR DEPLOYMENT ──────────────────────────────────────────────────────
-// This app uses the Game Night Firebase project as a temporary backend.
-// For production, create a dedicated Firebase project at console.firebase.google.com
-// and replace FB_CONFIG above. Set Realtime Database rules to:
-//   { "rules": { ".read": true, ".write": true } }  ← development only
-//   Then tighten with proper auth rules before going live.
-// ─────────────────────────────────────────────────────────────────────────────
-
-const FB_ROOT  = 'hpschool'; // namespace under which all data lives
-let _app, _db;
-let _fbReady   = false;
-let _fbError   = null;
-
-try {
-  _app     = initializeApp(FB_CONFIG, 'hpschool-app');
-  _db      = getDatabase(_app);
-  _fbReady = true;
-  console.log('[HPSchool] Firebase ready');
-} catch(e) {
-  _fbError = e.message;
-  console.error('[HPSchool] Firebase init error:', e);
-}
-
-// Thin helpers
-const fbRef  = path => ref(_db, `${FB_ROOT}/${path}`);
-const fbGet  = path => get(fbRef(path));
-const fbSet  = (path, val) => set(fbRef(path), val);
-const fbUpd  = (path, val) => update(fbRef(path), val);
-const fbDel  = path => remove(fbRef(path));
-const fbSub  = (path, cb) => onValue(fbRef(path), cb);
-const fbPush = (path, val) => push(fbRef(path), { ...val, ts: serverTimestamp() });
-const fbKey  = s => String(s).replace(/[.#$\[\]\/]/g, '_'); // safe Firebase key
-
-
-/* ═══════════════════════════════════════════════════════
    SECURITY MODULE
-   Rate-limiting (in-memory), XSS escaping, session token
+   - Rate-limiting: max 5 login attempts, 30s lockout
+   - Input sanitisation for all HTML rendering
+   - SQL injection guard on scratch-pad (read-only db)
+   - Session token to prevent direct page bypass
+   - Content Security helpers
 ═══════════════════════════════════════════════════════ */
 const Security = (() => {
   const MAX_ATTEMPTS = 5;
-  const LOCKOUT_MS   = 30_000;
-  const _attempts    = {};
-  let _sessionToken  = null;
+  const LOCKOUT_MS   = 30000; // 30 seconds
+  const _attempts    = {};    // { key: { count, lockedUntil } }
+  let _lockTimer     = null;
 
-  function _key(u) { return 'l_' + u.toLowerCase(); }
-  function canAttempt(u) {
-    const r = _attempts[_key(u)];
-    if (!r) return true;
-    if (r.lockedUntil && Date.now() < r.lockedUntil) return false;
+  function _key(username) { return 'login_' + username.toLowerCase(); }
+
+  function canAttempt(username) {
+    const rec = _attempts[_key(username)];
+    if (!rec) return true;
+    if (rec.lockedUntil && Date.now() < rec.lockedUntil) return false;
     return true;
   }
-  function recordFail(u) {
-    const k = _key(u);
-    if (!_attempts[k]) _attempts[k] = { count:0, lockedUntil:null };
+
+  function recordFail(username) {
+    const k   = _key(username);
+    if (!_attempts[k]) _attempts[k] = { count: 0, lockedUntil: null };
     _attempts[k].count++;
     if (_attempts[k].count >= MAX_ATTEMPTS) {
       _attempts[k].lockedUntil = Date.now() + LOCKOUT_MS;
-      return { locked:true, seconds: Math.ceil(LOCKOUT_MS/1000) };
+      return { locked: true, seconds: Math.ceil(LOCKOUT_MS / 1000) };
     }
-    return { locked:false, remaining: MAX_ATTEMPTS - _attempts[k].count };
+    return { locked: false, remaining: MAX_ATTEMPTS - _attempts[k].count };
   }
-  function recordSuccess(u) { delete _attempts[_key(u)]; }
-  function getLockRemaining(u) {
-    const r = _attempts[_key(u)];
-    if (!r || !r.lockedUntil) return 0;
-    const rem = r.lockedUntil - Date.now();
-    return rem > 0 ? Math.ceil(rem/1000) : 0;
+
+  function recordSuccess(username) {
+    delete _attempts[_key(username)];
   }
+
+  function getLockRemaining(username) {
+    const rec = _attempts[_key(username)];
+    if (!rec || !rec.lockedUntil) return 0;
+    const rem = rec.lockedUntil - Date.now();
+    return rem > 0 ? Math.ceil(rem / 1000) : 0;
+  }
+
+  // Escape HTML to prevent XSS when injecting user-provided strings
   function esc(str) {
     if (typeof str !== 'string') return String(str);
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
               .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
   }
-  function sanitize(str, maxLen=200) {
+
+  // Sanitise input: strip null bytes, trim, limit length
+  function sanitize(str, maxLen = 200) {
     if (typeof str !== 'string') return '';
-    return str.replace(/\0/g,'').trim().slice(0, maxLen);
+    return str.replace(/\0/g, '').trim().slice(0, maxLen);
   }
-  function createSession()  { _sessionToken = Math.random().toString(36).slice(2)+Date.now(); return _sessionToken; }
-  function validateSession(){ return _sessionToken !== null; }
-  function clearSession()   { _sessionToken = null; }
+
+  // Simple session token (in-memory, not persisted)
+  let _sessionToken = null;
+  function createSession() { _sessionToken = Math.random().toString(36).slice(2) + Date.now(); return _sessionToken; }
+  function validateSession() { return _sessionToken !== null; }
+  function clearSession() { _sessionToken = null; }
 
   return { canAttempt, recordFail, recordSuccess, getLockRemaining, esc, sanitize, createSession, validateSession, clearSession };
 })();
 
 /* ═══════════════════════════════════════════════════════
-   APP STATE  (in-memory — sourced from Firebase)
+   STORAGE  (localStorage with JSON — graceful fallback)
 ═══════════════════════════════════════════════════════ */
-let curUser  = null;  // { uid, name, username, isAdmin, isSuperAdmin }
-let curLI    = 0;     // current lesson index
-let db       = null;  // sql.js database
-let admSec2  = 'overview';
+const SK = 'hpschool_sqlv3';
 
-// Live cache of all users, keyed by uid — populated from Firebase onValue
-let _usersCache = {};  // uid → user object
-
-function getStudents()   { return Object.values(_usersCache).filter(u => u.role === 'student'); }
-function getAdmins()     { return Object.values(_usersCache).filter(u => u.role === 'admin'); }
-function getSuperAdmin() { return Object.values(_usersCache).find(u => u.isSuperAdmin); }
-function allUsernames()  { return Object.values(_usersCache).map(u => u.username); }
-function findUser(uid)   { return _usersCache[uid] || null; }
-
-// Default progress object for a new student
+function gs() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SK));
+    if (raw) {
+      // Migrate old format (had .admin + .students) to new .users format
+      if (raw.admin && !raw.users) {
+        const users = [
+          { uid:'a0', role:'admin', name:'Administrator',
+            username: raw.admin.username || 'Admin',
+            password: raw.admin.password || 'P@55w0rd',
+            isSuperAdmin: true }
+        ];
+        (raw.students || []).forEach(s => {
+          users.push({ ...s, role:'student', active: s.active !== false });
+        });
+        raw.users = users;
+        delete raw.admin;
+        delete raw.students;
+      }
+      if (raw.users) { ss(raw); return raw; }
+    }
+  } catch (e) { /* ignore */ }
+  const fresh = ds();
+  ss(fresh);
+  return fresh;
+}
+function ss(s) {
+  try { localStorage.setItem(SK, JSON.stringify(s)); } catch (e) {
+    // localStorage full — prune oldest activity logs
+    if (s.actLog && s.actLog.length > 20) s.actLog = s.actLog.slice(0, 20);
+    try { localStorage.setItem(SK, JSON.stringify(s)); } catch (_) { /* silent */ }
+  }
+}
 function dp() {
   return { unlocked:[0], completed:[], exResults:{}, practiseScore:null, practisePassed:false, lastAccess:null };
 }
+function ds() {
+  return {
+    theme: 'dark',
+    // users: unified pool — role:'admin' or role:'student'
+    // The primary admin (uid:'a0') is the default super-admin
+    users: [
+      { uid:'s1', role:'student', name:'DARIUS JESSE KALEMA', username:'djk', password:'djk123', active:true, progress:dp() },
+{ uid:'s2', role:'student', name:'RAPHAEL KEON AHUMUZA', username:'rka', password:'rka123', active:true, progress:dp() },
+{ uid:'s3', role:'student', name:'BRAHM NATHANIEL ARYATUHA', username:'bna', password:'bna123', active:true, progress:dp() },
+{ uid:'s4', role:'student', name:'ALEXANDER LEMUEL NSEREKO', username:'aln', password:'aln123', active:true, progress:dp() },
+{ uid:'s5', role:'student', name:'MARIE ESIANA EFATA', username:'mee', password:'mee123', active:true, progress:dp() },
+{ uid:'s6', role:'student', name:'ELON IJUM OLWENY', username:'eio', password:'eio123', active:true, progress:dp() },
+{ uid:'s7', role:'student', name:'ZANE URI KAMUNTU', username:'zuk', password:'zuk123', active:true, progress:dp() },
+{ uid:'s8', role:'student', name:'AHYOCA MARIE RODDY', username:'amr', password:'amr123', active:true, progress:dp() },
+{ uid:'s9', role:'student', name:'IRA MUSINGUZI', username:'im', password:'im123', active:true, progress:dp() },
+{ uid:'s10', role:'student', name:'CLIFF LEO AHEREZA', username:'cla', password:'cla123', active:true, progress:dp() },
+{ uid:'s11', role:'student', name:'CONRAD JONATHAN ATWINE', username:'cja', password:'cja123', active:true, progress:dp() },
+{ uid:'s12', role:'student', name:'ALVIN MUGULA SEGANE', username:'ams', password:'ams123', active:true, progress:dp() },
+{ uid:'s13', role:'student', name:'JAYDEN PAUL SAMBYA', username:'jps', password:'jps123', active:true, progress:dp() },
+{ uid:'s14', role:'student', name:'BRYANNA ELIZABETH MIREMBE', username:'bem', password:'bem123', active:true, progress:dp() },
+{ uid:'s15', role:'student', name:'DUKE AJIJI', username:'da', password:'da123', active:true, progress:dp() },
+{ uid:'s16', role:'student', name:'CARLA SSUUBI', username:'cs', password:'cs123', active:true, progress:dp() },
+{ uid:'s17', role:'student', name:'AARON LATIGO', username:'al', password:'al123', active:true, progress:dp() },
+{ uid:'s18', role:'student', name:'CARSON NSIMIRE', username:'cn', password:'cn123', active:true, progress:dp() },
+{ uid:'s19', role:'student', name:'ZOEY BIRUNGI MUHUMUZA', username:'zbm', password:'zbm123', active:true, progress:dp() },
+{ uid:'s20', role:'student', name:'MUWENDO BENJAMIN', username:'mb', password:'mb123', active:true, progress:dp() },
+{ uid:'s21', role:'student', name:'ELIANA MUKUNDANE', username:'em', password:'em123', active:true, progress:dp() },
+{ uid:'s22', role:'student', name:'LIONEL AYEKUNDIRE', username:'la', password:'la123', active:true, progress:dp() },
+{ uid:'s23', role:'student', name:'EVANS AINEMUKAMA', username:'ea', password:'ea123', active:true, progress:dp() },
+{ uid:'s24', role:'student', name:'DYLAN SETH TUMURAMYE', username:'dst', password:'dst123', active:true, progress:dp() },
+{ uid:'s25', role:'student', name:'ABIGAIL AGASHA', username:'aa', password:'aa123', active:true, progress:dp() },
+{ uid:'s26', role:'student', name:'JASON APORU', username:'ja', password:'ja123', active:true, progress:dp() },
+{ uid:'s27', role:'student', name:'JORJA LOGOSE', username:'jl', password:'jl123', active:true, progress:dp() },
+{ uid:'s28', role:'student', name:'SHAMMAH RUHINDA', username:'sr', password:'sr123', active:true, progress:dp() }
+    ],
+    actLog: []
+  };
+}
+
+let store    = gs();
+let curUser  = null;
+let curLI    = 0;
+let db       = null;
+let admSec2  = 'overview';
+
+// Convenience helpers — always reflect live store.users
+function getStudents()   { return store.users.filter(u => u.role === 'student'); }
+function getAdmins()     { return store.users.filter(u => u.role === 'admin'); }
+function getSuperAdmin() { return store.users.find(u => u.isSuperAdmin); }
+function allUsernames()  { return store.users.map(u => u.username); }
+function findUser(uid)   { return store.users.find(u => u.uid === uid); }
 
 /* ═══════════════════════════════════════════════════════
-   FIREBASE DATA SEEDING
-   On first ever load, writes the default 28 students
-   and the super-admin account to the database.
-   Subsequent loads skip this because the data already exists.
-═══════════════════════════════════════════════════════ */
-const DEFAULT_USERS = [
-  { uid:'a0', role:'admin', name:'Administrator', username:'Admin', password:'P@55w0rd', isSuperAdmin:true },
-  { uid:'s1',  role:'student', name:'DARIUS JESSE KALEMA',       username:'djk', password:'djk123', active:true },
-  { uid:'s2',  role:'student', name:'RAPHAEL KEON AHUMUZA',      username:'rka', password:'rka123', active:true },
-  { uid:'s3',  role:'student', name:'BRAHM NATHANIEL ARYATUHA',  username:'bna', password:'bna123', active:true },
-  { uid:'s4',  role:'student', name:'ALEXANDER LEMUEL NSEREKO',  username:'aln', password:'aln123', active:true },
-  { uid:'s5',  role:'student', name:'MARIE ESIANA EFATA',        username:'mee', password:'mee123', active:true },
-  { uid:'s6',  role:'student', name:'ELON IJUM OLWENY',          username:'eio', password:'eio123', active:true },
-  { uid:'s7',  role:'student', name:'ZANE URI KAMUNTU',          username:'zuk', password:'zuk123', active:true },
-  { uid:'s8',  role:'student', name:'AHYOCA MARIE RODDY',        username:'amr', password:'amr123', active:true },
-  { uid:'s9',  role:'student', name:'IRA MUSINGUZI',             username:'im',  password:'im123',  active:true },
-  { uid:'s10', role:'student', name:'CLIFF LEO AHEREZA',         username:'cla', password:'cla123', active:true },
-  { uid:'s11', role:'student', name:'CONRAD JONATHAN ATWINE',    username:'cja', password:'cja123', active:true },
-  { uid:'s12', role:'student', name:'ALVIN MUGULA SEGANE',       username:'ams', password:'ams123', active:true },
-  { uid:'s13', role:'student', name:'JAYDEN PAUL SAMBYA',        username:'jps', password:'jps123', active:true },
-  { uid:'s14', role:'student', name:'BRYANNA ELIZABETH MIREMBE', username:'bem', password:'bem123', active:true },
-  { uid:'s15', role:'student', name:'DUKE AJIJI',                username:'da',  password:'da123',  active:true },
-  { uid:'s16', role:'student', name:'CARLA SSUUBI',              username:'cs',  password:'cs123',  active:true },
-  { uid:'s17', role:'student', name:'AARON LATIGO',              username:'al',  password:'al123',  active:true },
-  { uid:'s18', role:'student', name:'CARSON NSIMIRE',            username:'cn',  password:'cn123',  active:true },
-  { uid:'s19', role:'student', name:'ZOEY BIRUNGI MUHUMUZA',     username:'zbm', password:'zbm123', active:true },
-  { uid:'s20', role:'student', name:'MUWENDO BENJAMIN',          username:'mb',  password:'mb123',  active:true },
-  { uid:'s21', role:'student', name:'ELIANA MUKUNDANE',          username:'em',  password:'em123',  active:true },
-  { uid:'s22', role:'student', name:'LIONEL AYEKUNDIRE',         username:'la',  password:'la123',  active:true },
-  { uid:'s23', role:'student', name:'EVANS AINEMUKAMA',          username:'ea',  password:'ea123',  active:true },
-  { uid:'s24', role:'student', name:'DYLAN SETH TUMURAMYE',      username:'dst', password:'dst123', active:true },
-  { uid:'s25', role:'student', name:'ABIGAIL AGASHA',            username:'aa',  password:'aa123',  active:true },
-  { uid:'s26', role:'student', name:'JASON APORU',               username:'ja',  password:'ja123',  active:true },
-  { uid:'s27', role:'student', name:'JORJA LOGOSE',              username:'jl',  password:'jl123',  active:true },
-  { uid:'s28', role:'student', name:'SHAMMAH RUHINDA',           username:'sr',  password:'sr123',  active:true }
-];
-
-async function seedIfEmpty() {
-  const snap = await fbGet('users');
-  if (snap.exists()) return; // already seeded
-  console.log('[HPSchool] Seeding initial data…');
-  const updates = {};
-  DEFAULT_USERS.forEach(u => {
-    const entry = { ...u };
-    if (u.role === 'student') entry.progress = dp();
-    updates[u.uid] = entry;
-  });
-  await fbSet('users', updates);
-  // Seed theme preference
-  await fbSet('theme', 'dark');
-  console.log('[HPSchool] Seeding complete.');
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   THEME  (stored in Firebase, shared across devices)
-═══════════════════════════════════════════════════════ */
-function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  const dark = t === 'dark';
-  ['themeIco','appThemeIco','admThemeIco'].forEach(id => {
-    const el = document.getElementById(id); if (el) el.textContent = dark ? '🌙' : '☀️';
-  });
-  const lbl = document.getElementById('themeLbl'); if (lbl) lbl.textContent = dark ? 'Dark Mode' : 'Light Mode';
-}
-window.toggleTheme = function() {
-  const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
-  applyTheme(t);
-  fbSet('theme', t).catch(()=>{});
-};
-
-/* ═══════════════════════════════════════════════════════
-   SHOW / HIDE PASSWORD
-═══════════════════════════════════════════════════════ */
-let _passVisible = false;
-window.toggleShowPass = function() {
-  _passVisible = !_passVisible;
-  const inp = document.getElementById('loginP');
-  const btn = document.getElementById('showPassBtn');
-  if (!inp || !btn) return;
-  inp.type = _passVisible ? 'text' : 'password';
-  btn.textContent = _passVisible ? '🙈' : '👁';
-  btn.title = _passVisible ? 'Hide password' : 'Show password';
-};
-
-/* ═══════════════════════════════════════════════════════
-   AUTH — login / logout
-═══════════════════════════════════════════════════════ */
-let _lockInterval = null;
-
-window.doLogin = async function() {
-  const loginBtn = document.getElementById('loginBtn');
-  const errEl    = document.getElementById('loginErr');
-  const lockEl   = document.getElementById('loginLock');
-  const attEl    = document.getElementById('loginAttempts');
-
-  errEl.style.display  = 'none';
-  lockEl.style.display = 'none';
-  if (attEl) attEl.textContent = '';
-
-  const rawU = document.getElementById('loginU').value;
-  const rawP = document.getElementById('loginP').value;
-  const u    = Security.sanitize(rawU, 50);
-  const p    = Security.sanitize(rawP, 100);
-
-  if (!u || !p) {
-    errEl.textContent = '⚠ Please enter both username and password.';
-    errEl.style.display = 'block'; shakeCard(); return;
-  }
-  if (!Security.canAttempt(u)) {
-    showLockout(Security.getLockRemaining(u)); shakeCard(); return;
-  }
-
-  // Show loading state
-  if (loginBtn) { loginBtn.disabled = true; loginBtn.textContent = 'Signing in…'; }
-
-  if (!_fbReady) {
-    toast('Cannot connect to the database. Check your internet connection.', 'err');
-    if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
-    return;
-  }
-
-  try {
-    // Find user by username in Firebase
-    const snap = await fbGet('users');
-    let matchedUser = null;
-    if (snap.exists()) {
-      const usersObj = snap.val();
-      for (const uid in usersObj) {
-        const u2 = usersObj[uid];
-        if (u2.username === u && u2.password === p) { matchedUser = { uid, ...u2 }; break; }
-      }
-    }
-
-    if (matchedUser && matchedUser.role === 'admin') {
-      Security.recordSuccess(u);
-      Security.createSession();
-      curUser = { uid: matchedUser.uid, name: matchedUser.name, username: u, isAdmin:true, isSuperAdmin: !!matchedUser.isSuperAdmin };
-      logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
-      showPg('pg-admin');
-      startAdminLiveSync();
-      renderAdm();
-      if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
-      return;
-    }
-
-    if (matchedUser && matchedUser.role === 'student') {
-      if (matchedUser.active === false) {
-        shakeCard();
-        errEl.textContent = '⚠ This account has been deactivated. Please contact your teacher.';
-        errEl.style.display = 'block';
-        logAct(`Login blocked — inactive: "${Security.esc(u)}"`, 'r');
-        if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
-        return;
-      }
-      Security.recordSuccess(u);
-      Security.createSession();
-      curUser = { uid: matchedUser.uid, name: matchedUser.name, username: matchedUser.username, isAdmin:false };
-      // Update lastAccess in Firebase
-      if (!matchedUser.progress) matchedUser.progress = dp();
-      matchedUser.progress.lastAccess = new Date().toISOString();
-      await fbUpd(`users/${matchedUser.uid}/progress`, { lastAccess: matchedUser.progress.lastAccess });
-      logAct(`Student "${Security.esc(matchedUser.name)}" logged in`, 'g');
-      showPg('pg-app');
-      startStudentLiveSync(matchedUser.uid, matchedUser);
-      if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
-      return;
-    }
-
-    // Failed
-    const result = Security.recordFail(u);
-    shakeCard();
-    if (result.locked) {
-      showLockout(result.seconds);
-      if (loginBtn) loginBtn.disabled = true;
-      startLockTimer(u, loginBtn);
-    } else {
-      errEl.textContent = '⚠ Wrong username or password. Please try again.';
-      errEl.style.display = 'block';
-      if (attEl && result.remaining !== undefined)
-        attEl.textContent = `${result.remaining} attempt${result.remaining!==1?'s':''} remaining before temporary lockout.`;
-    }
-    logAct(`Failed login for "${Security.esc(u)}"`, 'r');
-  } catch(err) {
-    console.error('[HPSchool] Login error:', err);
-    toast('Login failed — check your connection and try again.', 'err');
-  }
-  if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
-};
-
-function showLockout(secs) {
-  const lockEl  = document.getElementById('loginLock');
-  const timerEl = document.getElementById('lockTimer');
-  if (!lockEl || !timerEl) return;
-  timerEl.textContent = secs; lockEl.style.display = 'block';
-}
-function startLockTimer(username, btn) {
-  if (_lockInterval) clearInterval(_lockInterval);
-  _lockInterval = setInterval(() => {
-    const rem = Security.getLockRemaining(username);
-    const timerEl = document.getElementById('lockTimer');
-    if (timerEl) timerEl.textContent = rem;
-    if (rem <= 0) {
-      clearInterval(_lockInterval); _lockInterval = null;
-      const lockEl = document.getElementById('loginLock');
-      if (lockEl) lockEl.style.display = 'none';
-      if (btn) btn.disabled = false;
-      const attEl = document.getElementById('loginAttempts');
-      if (attEl) attEl.textContent = '';
-    }
-  }, 1000);
-}
-function shakeCard() {
-  const card = document.querySelector('.login-card'); if (!card) return;
-  card.classList.remove('inp-shake'); void card.offsetWidth;
-  card.classList.add('inp-shake'); setTimeout(()=>card.classList.remove('inp-shake'),500);
-}
-
-let _adminUnsubscribe = null;
-let _studentUnsubscribe = null;
-
-window.doLogout = function() {
-  Security.clearSession();
-  curUser = null; curLI = 0; admSec2 = 'overview';
-  // Unsubscribe live listeners
-  if (_adminUnsubscribe)  { try{_adminUnsubscribe();}catch(e){} _adminUnsubscribe=null; }
-  if (_studentUnsubscribe){ try{_studentUnsubscribe();}catch(e){} _studentUnsubscribe=null; }
-  _usersCache = {};
-  _passVisible = false;
-  const inp = document.getElementById('loginP'); if(inp) inp.type = 'password';
-  const btn2 = document.getElementById('showPassBtn'); if(btn2) btn2.textContent = '👁';
-  document.getElementById('loginU').value = '';
-  document.getElementById('loginP').value = '';
-  document.getElementById('loginErr').style.display = 'none';
-  const lockEl = document.getElementById('loginLock'); if(lockEl) lockEl.style.display='none';
-  const attEl2 = document.getElementById('loginAttempts'); if(attEl2) attEl2.textContent='';
-  const loginBtn2 = document.getElementById('loginBtn'); if(loginBtn2) loginBtn2.disabled=false;
-  showPg('pg-login');
-};
-
-function showPg(id) {
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
-  const themeBtn = document.getElementById('themeBtn');
-  if (themeBtn) themeBtn.style.display = id === 'pg-login' ? 'flex' : 'none';
-}
-
-function requireSession() {
-  if (!Security.validateSession() || !curUser) { doLogout(); return false; }
-  return true;
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   LIVE SYNC — Firebase real-time listeners
-   Admin: listens to all users + actLog for live dashboard
-   Student: listens to their own progress node
-═══════════════════════════════════════════════════════ */
-function startAdminLiveSync() {
-  if (_adminUnsubscribe) { try{_adminUnsubscribe();}catch(e){} }
-  _adminUnsubscribe = fbSub('users', snap => {
-    _usersCache = {};
-    if (snap.exists()) {
-      const usersObj = snap.val();
-      for (const uid in usersObj) _usersCache[uid] = { uid, ...usersObj[uid] };
-    }
-    // Re-render admin dashboard section if currently on admin page
-    const adminActive = document.getElementById('pg-admin').classList.contains('active');
-    if (adminActive && curUser && curUser.isAdmin) renderAdm();
-  });
-}
-
-function startStudentLiveSync(uid, initialData) {
-  // Populate cache with the student's own data
-  _usersCache[uid] = { uid, ...initialData };
-  initApp(initialData);
-
-  if (_studentUnsubscribe) { try{_studentUnsubscribe();}catch(e){} }
-  // Listen for changes to this student's record (e.g. admin resets progress, unlocks lessons)
-  _studentUnsubscribe = fbSub(`users/${uid}`, snap => {
-    if (!snap.exists()) return;
-    const updated = { uid, ...snap.val() };
-    _usersCache[uid] = updated;
-    // If currently in the app, refresh sidebar and lesson nav
-    const appActive = document.getElementById('pg-app').classList.contains('active');
-    if (appActive && curUser && !curUser.isAdmin) {
-      renderSB(); updateNavBtns();
-    }
-  });
-}
-
-/* ═══════════════════════════════════════════════════════
-   STUDENT HELPERS  (read from live cache)
-═══════════════════════════════════════════════════════ */
-function getStu() { return _usersCache[curUser.uid] || null; }
-function getProg() {
-  const s = getStu();
-  if (!s) return dp();
-  if (!s.progress) s.progress = dp();
-  return s.progress;
-}
-
-// Write progress to Firebase (debounced to avoid too many writes)
-let _progWriteTimer = null;
-function saveProg() {
-  clearTimeout(_progWriteTimer);
-  _progWriteTimer = setTimeout(async () => {
-    const s = getStu();
-    if (!s || !curUser) return;
-    try {
-      await fbSet(`users/${curUser.uid}/progress`, s.progress || dp());
-    } catch(e) { console.error('[HPSchool] saveProg error:', e); }
-  }, 400);
-}
-
-/* ═══════════════════════════════════════════════════════
-   ACTIVITY LOG  (Firebase list)
-═══════════════════════════════════════════════════════ */
-function logAct(msg, color='') {
-  if (!_fbReady) return;
-  fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() }).catch(()=>{});
-}
-
-// Read actLog once for display (admin panel only)
-async function getActLog(limit=100) {
-  try {
-    const snap = await fbGet('actLog');
-    if (!snap.exists()) return [];
-    const entries = [];
-    snap.forEach(child => entries.push(child.val()));
-    return entries.reverse().slice(0, limit);
-  } catch(e) { return []; }
-}
-
-window.clrLogs = async function() {
-  if (!confirm('Clear all activity logs? This cannot be undone.')) return;
-  await fbDel('actLog');
-  toast('Logs cleared.'); renderAdm();
-}
-
-
-/* ═══════════════════════════════════════════════════════
-   SQL.JS DATABASE INIT
+   DATABASE INIT
 ═══════════════════════════════════════════════════════ */
 initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}` })
   .then(SQL => {
@@ -1179,6 +872,7 @@ initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10
       INSERT OR IGNORE INTO students VALUES(28,'Hannah','Okello','Male','2017-03-11','P1','Green');
       INSERT OR IGNORE INTO students VALUES(29,'Daniel','Sserwanga','Female','2013-08-20','P4','Green');
       INSERT OR IGNORE INTO students VALUES(30,'Mercy','Kato','Female','2016-05-22','P1','Red');
+
       CREATE TABLE IF NOT EXISTS teachers(
         teacher_id INTEGER PRIMARY KEY, first_name TEXT, last_name TEXT,
         gender TEXT, subject TEXT, phone_number TEXT, email TEXT);
@@ -1192,6 +886,7 @@ initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10
       INSERT OR IGNORE INTO teachers VALUES(8,'Michael','Atuhe','Female','Mathematics','0729788027','michael.atuhe@school.edu');
       INSERT OR IGNORE INTO teachers VALUES(9,'Esther','Nabirye','Male','Science','0768980602','esther.nabirye@school.edu');
       INSERT OR IGNORE INTO teachers VALUES(10,'Isaac','Tumusiime','Female','English','0724044221','isaac.tumusiime@school.edu');
+
       CREATE TABLE IF NOT EXISTS classes(
         class_id INTEGER PRIMARY KEY, class_name TEXT, class_teacher TEXT, room TEXT, stream TEXT);
       INSERT OR IGNORE INTO classes VALUES(1,'P1A','Joshua Atuhe','R5B','A');
@@ -1206,8 +901,240 @@ initSqlJs({ locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10
       INSERT OR IGNORE INTO classes VALUES(10,'P7A','Andrew Nankya','R4A','A');
     `);
   })
-  .catch(() => toast('SQL database failed to load. Please reload the page.', 'err'));
+  .catch(() => toast('Database failed to initialise. Please reload the page.', 'err'));
 
+/* ═══════════════════════════════════════════════════════
+   THEME
+═══════════════════════════════════════════════════════ */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  store.theme = t;
+  ss(store);
+  const dark = t === 'dark';
+  ['themeIco','appThemeIco','admThemeIco'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = dark ? '🌙' : '☀️';
+  });
+  const lbl = document.getElementById('themeLbl');
+  if (lbl) lbl.textContent = dark ? 'Dark Mode' : 'Light Mode';
+}
+function toggleTheme() { applyTheme(store.theme === 'dark' ? 'light' : 'dark'); }
+applyTheme(store.theme);
+
+/* ═══════════════════════════════════════════════════════
+   SHOW / HIDE PASSWORD
+═══════════════════════════════════════════════════════ */
+let _passVisible = false;
+function toggleShowPass() {
+  _passVisible = !_passVisible;
+  const inp = document.getElementById('loginP');
+  const btn = document.getElementById('showPassBtn');
+  if (!inp || !btn) return;
+  inp.type = _passVisible ? 'text' : 'password';
+  btn.textContent = _passVisible ? '🙈' : '👁';
+  btn.title = _passVisible ? 'Hide password' : 'Show password';
+}
+
+/* ═══════════════════════════════════════════════════════
+   AUTH  — with rate-limiting + lockout
+═══════════════════════════════════════════════════════ */
+let _lockInterval = null;
+
+function doLogin() {
+  const rawU = document.getElementById('loginU').value;
+  const rawP = document.getElementById('loginP').value;
+  const u = Security.sanitize(rawU, 50);
+  const p = Security.sanitize(rawP, 100);
+
+  const errEl   = document.getElementById('loginErr');
+  const lockEl  = document.getElementById('loginLock');
+  const attEl   = document.getElementById('loginAttempts');
+  const btn     = document.getElementById('loginBtn');
+
+  errEl.style.display  = 'none';
+  lockEl.style.display = 'none';
+  if (attEl) attEl.textContent = '';
+
+  if (!u || !p) {
+    errEl.textContent = '⚠ Please enter both username and password.';
+    errEl.style.display = 'block';
+    shakeCard();
+    return;
+  }
+
+  // Check lockout
+  if (!Security.canAttempt(u)) {
+    const secs = Security.getLockRemaining(u);
+    showLockout(secs);
+    shakeCard();
+    return;
+  }
+
+  // Unified user lookup
+  const matchedUser = store.users.find(usr => usr.username === u && usr.password === p);
+
+  if (matchedUser && matchedUser.role === 'admin') {
+    Security.recordSuccess(u);
+    Security.createSession();
+    curUser = { uid: matchedUser.uid, name: matchedUser.name, username: u, isAdmin: true, isSuperAdmin: !!matchedUser.isSuperAdmin };
+    logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
+    showPg('pg-admin');
+    renderAdm();
+    return;
+  }
+
+  // Student check
+  const stu = matchedUser && matchedUser.role === 'student' ? matchedUser : null;
+  if (stu) {
+    if (stu.active === false) {
+      shakeCard();
+      errEl.textContent = '⚠ This account has been deactivated. Please contact your teacher.';
+      errEl.style.display = 'block';
+      logAct(`Login blocked — inactive account: "${Security.esc(u)}"`, 'r');
+      return;
+    }
+    Security.recordSuccess(u);
+    Security.createSession();
+    curUser = { uid: stu.uid, name: stu.name, username: stu.username, isAdmin: false };
+    if (!stu.progress) stu.progress = dp();
+    stu.progress.lastAccess = new Date().toISOString();
+    ss(store);
+    logAct(`Student "${Security.esc(stu.name)}" logged in`, 'g');
+    showPg('pg-app');
+    initApp(stu);
+    return;
+  }
+
+  // Failed login
+  const result = Security.recordFail(u);
+  shakeCard();
+
+  if (result.locked) {
+    showLockout(result.seconds);
+    if (btn) btn.disabled = true;
+    startLockTimer(u, btn);
+  } else {
+    errEl.textContent = '⚠ Wrong username or password. Please try again.';
+    errEl.style.display = 'block';
+    if (attEl && result.remaining !== undefined) {
+      attEl.textContent = `${result.remaining} attempt${result.remaining !== 1 ? 's' : ''} remaining before temporary lockout.`;
+    }
+  }
+  logAct(`Failed login attempt for username "${Security.esc(u)}"`, 'r');
+}
+
+function showLockout(secs) {
+  const lockEl   = document.getElementById('loginLock');
+  const timerEl  = document.getElementById('lockTimer');
+  if (!lockEl || !timerEl) return;
+  timerEl.textContent = secs;
+  lockEl.style.display = 'block';
+}
+
+function startLockTimer(username, btn) {
+  if (_lockInterval) clearInterval(_lockInterval);
+  _lockInterval = setInterval(() => {
+    const rem = Security.getLockRemaining(username);
+    const timerEl = document.getElementById('lockTimer');
+    if (timerEl) timerEl.textContent = rem;
+    if (rem <= 0) {
+      clearInterval(_lockInterval);
+      _lockInterval = null;
+      const lockEl = document.getElementById('loginLock');
+      if (lockEl) lockEl.style.display = 'none';
+      if (btn) btn.disabled = false;
+      const attEl = document.getElementById('loginAttempts');
+      if (attEl) attEl.textContent = '';
+    }
+  }, 1000);
+}
+
+function shakeCard() {
+  const card = document.querySelector('.login-card');
+  if (!card) return;
+  card.classList.remove('inp-shake');
+  void card.offsetWidth; // reflow
+  card.classList.add('inp-shake');
+  setTimeout(() => card.classList.remove('inp-shake'), 500);
+}
+
+// Keyboard listeners
+document.getElementById('loginP').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+document.getElementById('loginU').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginP').focus(); });
+
+function doLogout() {
+  Security.clearSession();
+  curUser = null;
+  _passVisible = false;
+  const inp = document.getElementById('loginP');
+  if (inp) inp.type = 'password';
+  const btn = document.getElementById('showPassBtn');
+  if (btn) btn.textContent = '👁';
+  document.getElementById('loginU').value = '';
+  document.getElementById('loginP').value = '';
+  document.getElementById('loginErr').style.display = 'none';
+  const lockEl = document.getElementById('loginLock');
+  if (lockEl) lockEl.style.display = 'none';
+  const attEl = document.getElementById('loginAttempts');
+  if (attEl) attEl.textContent = '';
+  const loginBtn = document.getElementById('loginBtn');
+  if (loginBtn) loginBtn.disabled = false;
+  showPg('pg-login');
+}
+
+function showPg(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const themeBtn = document.getElementById('themeBtn');
+  if (themeBtn) themeBtn.style.display = id === 'pg-login' ? 'flex' : 'none';
+}
+
+/* ═══════════════════════════════════════════════════════
+   GUARD — prevent access to app/admin without session
+═══════════════════════════════════════════════════════ */
+function requireSession() {
+  if (!Security.validateSession() || !curUser) {
+    doLogout();
+    return false;
+  }
+  return true;
+}
+
+/* ═══════════════════════════════════════════════════════
+   APP INIT
+═══════════════════════════════════════════════════════ */
+function initApp(stu) {
+  const av = document.getElementById('sbAvatar');
+  if (av) av.textContent = stu.name.charAt(0).toUpperCase();
+  const nm = document.getElementById('sbName');
+  if (nm) nm.textContent = Security.esc(stu.name);
+  const rl = document.getElementById('sbRole');
+  if (rl) rl.textContent = 'Learner';
+  // Show welcome banner
+  const wb = document.getElementById('welcomeBanner');
+  if (wb) {
+    const first = Security.esc(stu.name.split(' ')[0]);
+    wb.innerHTML = `<span class="wb-emoji">👋</span><span class="wb-text">Welcome back, <strong>${first}</strong>! Ready to learn some SQL today?</span>`;
+    wb.style.display = 'flex';
+    // Auto-hide after 8 seconds
+    setTimeout(() => { wb.style.opacity='0'; wb.style.transition='opacity .6s'; setTimeout(()=>{wb.style.display='none';},650); }, 8000);
+  }
+  renderSB();
+  loadLesson(0);
+}
+
+function getStu() { return store.users.find(u => u.uid === curUser.uid); }
+function getProg() {
+  const s = getStu();
+  if (!s.progress) s.progress = dp();
+  return s.progress;
+}
+
+/* ═══════════════════════════════════════════════════════
+   SMART HINT ENGINE
+   Analyses the user's SQL + actual result to produce
+   a specific, actionable hint rather than a generic message.
+═══════════════════════════════════════════════════════ */
 function smartHint(sql, result, li, idx) {
   const s   = (sql || '').trim();
   const sup = s.toUpperCase();
@@ -1921,7 +1848,6 @@ function levenshtein(a, b) {
 /* ═══════════════════════════════════════════════════════
    LESSON DATA
 ═══════════════════════════════════════════════════════ */
-
 const LESSONS = [
   /* 0 — SQL Introduction */
   { title:'SQL Introduction', icon:'📘',
@@ -2144,24 +2070,6 @@ Use it when you want to know <strong>what values exist</strong> — not how many
   }
 ];
 
-
-/* ═══════════════════════════════════════════════════════
-   APP INIT  (student view)
-═══════════════════════════════════════════════════════ */
-function initApp(stu) {
-  const av = document.getElementById('sbAvatar'); if (av) av.textContent = stu.name.charAt(0).toUpperCase();
-  const nm = document.getElementById('sbName');   if (nm) nm.textContent = Security.esc(stu.name);
-  const rl = document.getElementById('sbRole');   if (rl) rl.textContent = 'Learner';
-  const wb = document.getElementById('welcomeBanner');
-  if (wb) {
-    const first = Security.esc(stu.name.split(' ')[0]);
-    wb.innerHTML = `<span class="wb-emoji">👋</span><span class="wb-text">Welcome back, <strong>${first}</strong>! Ready to learn some SQL today?</span>`;
-    wb.style.display = 'flex'; wb.style.opacity = '1';
-    setTimeout(()=>{ wb.style.opacity='0'; wb.style.transition='opacity .6s'; setTimeout(()=>{wb.style.display='none';},650); }, 8000);
-  }
-  renderSB(); loadLesson(0);
-}
-
 /* ═══════════════════════════════════════════════════════
    SIDEBAR
 ═══════════════════════════════════════════════════════ */
@@ -2175,20 +2083,21 @@ function renderSB() {
     const done = prog.completed.includes(i);
     const act  = i === curLI;
     const d = document.createElement('div');
-    d.className = 'sb-item'+(act?' active':'')+(done?' done':'')+(unlk?'':' locked');
-    d.innerHTML = `<span class="sb-ck">${done?'✓':(act?'▶':'○')}</span>`
+    d.className = 'sb-item' + (act?' active':'') + (done?' done':'') + (unlk?'':' locked');
+    d.innerHTML = `<span class="sb-ck">${done ? '✓' : (act ? '▶' : '○')}</span>`
                 + `<span class="sb-lbl">${L.icon} ${Security.esc(L.title)}</span>`
-                + (unlk?'':'<span style="font-size:10px">🔒</span>');
-    d.onclick = () => { if(unlk) loadLesson(i); else toast('Complete the current lesson first.','warn'); };
+                + (unlk ? '' : '<span style="font-size:10px">🔒</span>');
+    d.onclick = () => { if (unlk) loadLesson(i); else toast('Complete the current lesson to unlock this one.', 'warn'); };
     nav.appendChild(d);
   });
+  // Progress: 4 lessons + PRACTISE pass = 5 total milestones
   const total = 5;
-  const lessDone = prog.completed.filter(x=>x<4).length;
-  const pracPass = prog.practisePassed ? 1 : 0;
-  const doneCnt  = lessDone + pracPass;
-  const pct = Math.round(doneCnt/total*100);
-  const pf = document.getElementById('progFill'); if (pf) pf.style.width = pct+'%';
-  const pp = document.getElementById('progPct');  if (pp) pp.textContent = pct+'%';
+  const lessonsDone = prog.completed.filter(x => x < 4).length;
+  const pracPassed  = prog.practisePassed ? 1 : 0;
+  const doneCnt     = lessonsDone + pracPassed;
+  const pct = Math.round(doneCnt / total * 100);
+  const pf = document.getElementById('progFill'); if (pf) pf.style.width = pct + '%';
+  const pp = document.getElementById('progPct');  if (pp) pp.textContent = pct + '%';
   const pt = document.getElementById('progTxt');  if (pt) pt.textContent = `${doneCnt} / ${total} complete`;
 }
 
@@ -2198,14 +2107,15 @@ function renderSB() {
 function loadLesson(idx) {
   if (!requireSession()) return;
   const prog = getProg();
-  if (!prog.unlocked.includes(idx)) { toast('Lesson is locked.','err'); return; }
+  if (!prog.unlocked.includes(idx)) { toast('Lesson is locked.', 'err'); return; }
   curLI = idx;
   const L = LESSONS[idx];
-  const tb = document.getElementById('topbarTitle'); if (tb) tb.textContent = L.icon+' '+L.title;
+  const tb = document.getElementById('topbarTitle'); if (tb) tb.textContent = L.icon + ' ' + L.title;
   const scroll = document.getElementById('lscroll');
   if (L.isPrac) renderPracPage(scroll);
   else          renderLessonPage(L, scroll);
-  updateNavBtns(); renderSB();
+  updateNavBtns();
+  renderSB();
 }
 
 function renderLessonPage(L, container) {
@@ -2215,10 +2125,10 @@ function renderLessonPage(L, container) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   EXERCISE BLOCKS
+   EXERCISE HTML (XSS-safe via Security.esc for user-injected data)
 ═══════════════════════════════════════════════════════ */
 function buildExBlocks(L, li) {
-  return L.exercises.map((ex,i) => {
+  return L.exercises.map((ex, i) => {
     const key  = `${li}_${i}`;
     const done = getProg().exResults[key] === true;
     return `<div class="exb" id="exb-${li}-${i}">
@@ -2250,15 +2160,15 @@ function buildExBlocks(L, li) {
 }
 
 function attachExTAs(li, count) {
-  for (let i=0; i<count; i++) {
+  for (let i = 0; i < count; i++) {
     const ta = document.getElementById(`exta-${li}-${i}`);
     if (!ta) continue;
     ta.addEventListener('keydown', function(e) {
-      if (e.key==='Tab') {
+      if (e.key === 'Tab') {
         e.preventDefault();
         const s = this.selectionStart;
-        this.value = this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);
-        this.selectionStart = this.selectionEnd = s+2;
+        this.value = this.value.substring(0, s) + '  ' + this.value.substring(this.selectionEnd);
+        this.selectionStart = this.selectionEnd = s + 2;
       }
     });
   }
@@ -2266,32 +2176,32 @@ function attachExTAs(li, count) {
 
 function refreshExBadges(L, li) {
   const prog = getProg();
-  L.exercises.forEach((_,i) => {
+  L.exercises.forEach((_, i) => {
     if (prog.exResults[`${li}_${i}`]) {
       const b = document.getElementById(`exbd-${li}-${i}`);
-      if (b) { b.textContent='Correct ✅'; b.className='exb-badge ok'; }
+      if (b) { b.textContent = 'Correct ✅'; b.className = 'exb-badge ok'; }
     }
   });
 }
 
-window.rstTA = function(li, idx) {
+function rstTA(li, idx) {
   const L  = LESSONS[li];
   const ta = document.getElementById(`exta-${li}-${idx}`);
   if (ta && L) ta.value = L.exercises[idx].s || '';
-};
+}
 
-window.runEx = function(li, idx) {
+function runEx(li, idx) {
   if (!requireSession()) return;
-  if (!db) { toast('Database loading, please wait…','err'); return; }
+  if (!db) { toast('Database loading, please wait…', 'err'); return; }
   const L  = LESSONS[li];
   const ta = document.getElementById(`exta-${li}-${idx}`);
   const sql = ta ? ta.value.trim() : '';
-  if (!sql) { toast('Write a SQL query first.','warn'); return; }
+  if (!sql) { toast('Write a SQL query first.', 'warn'); return; }
 
   const resEl = document.getElementById(`exres-${li}-${idx}`);
   const rstEl = document.getElementById(`exrst-${li}-${idx}`);
   const rbEl  = document.getElementById(`exrb-${li}-${idx}`);
-  const fbEl2 = document.getElementById(`exfb-${li}-${idx}`);
+  const fbEl  = document.getElementById(`exfb-${li}-${idx}`);
   const bdEl  = document.getElementById(`exbd-${li}-${idx}`);
 
   let r, err;
@@ -2302,48 +2212,49 @@ window.runEx = function(li, idx) {
     rstEl.textContent = 'error'; rstEl.className = 'res-stat s-err';
     rbEl.innerHTML = `<div style="padding:6px 10px;font-family:var(--mono);font-size:11px;color:var(--red)">❌ ${Security.esc(err)}</div>`;
     const errHint = analyseError(sql, err);
-    if (fbEl2) { fbEl2.style.display='block'; fbEl2.className='exb-fb fail'; fbEl2.innerHTML=`<strong>SQL Error:</strong> ${Security.esc(err)}<br><span style="margin-top:5px;display:block">💡 <em>${Security.esc(errHint)}</em></span>`; }
+    if (fbEl) { fbEl.style.display = 'block'; fbEl.className = 'exb-fb fail'; fbEl.innerHTML = `<strong>SQL Error:</strong> ${Security.esc(err)}<br><span style="margin-top:5px;display:block">💡 <em>${Security.esc(errHint)}</em></span>`; }
     return;
   }
 
   if (r && r.length) {
-    rstEl.textContent = `${r[0].values.length} row(s)`; rstEl.className='res-stat s-ok';
+    rstEl.textContent = `${r[0].values.length} row(s)`; rstEl.className = 'res-stat s-ok';
     rbEl.innerHTML = buildRTbl(r[0]);
   } else {
-    rstEl.textContent = 'no rows'; rstEl.className='res-stat s-idle';
+    rstEl.textContent = 'no rows'; rstEl.className = 'res-stat s-idle';
     rbEl.innerHTML = `<div style="padding:6px 10px;font-size:11px;color:var(--txt3)">Query ran — no rows returned.</div>`;
   }
 
   const val = L.exercises[idx].v(r);
   const key = `${li}_${idx}`;
-  const prog = getProg();
 
   if (val.ok) {
-    if (fbEl2) { fbEl2.style.display='block'; fbEl2.className='exb-fb ok'; fbEl2.innerHTML='✅ <strong>Correct!</strong> Exercise complete.'; }
-    if (bdEl)  { bdEl.textContent='Correct ✅'; bdEl.className='exb-badge ok'; }
-    prog.exResults[key] = true;
-    saveProg();
+    if (fbEl) { fbEl.style.display = 'block'; fbEl.className = 'exb-fb ok'; fbEl.innerHTML = '✅ <strong>Correct!</strong> Exercise complete.'; }
+    if (bdEl) { bdEl.textContent = 'Correct ✅'; bdEl.className = 'exb-badge ok'; }
+    getProg().exResults[key] = true;
+    ss(store);
     checkLessonComplete(li);
     logAct(`${Security.esc(curUser.name)} completed Exercise ${idx+1} in "${Security.esc(LESSONS[li].title)}"`, 'g');
   } else {
     const hint = smartHint(sql, r, li, idx) || val.m;
-    if (fbEl2) { fbEl2.style.display='block'; fbEl2.className='exb-fb fail'; fbEl2.innerHTML=`❌ <strong>Not quite.</strong> ${Security.esc(hint)}`; }
-    if (bdEl)  { bdEl.textContent='Incorrect'; bdEl.className='exb-badge fail'; }
+    if (fbEl) { fbEl.style.display = 'block'; fbEl.className = 'exb-fb fail'; fbEl.innerHTML = `❌ <strong>Not quite.</strong> ${Security.esc(hint)}`; }
+    if (bdEl) { bdEl.textContent = 'Incorrect'; bdEl.className = 'exb-badge fail'; }
   }
-};
+}
 
 function checkLessonComplete(li) {
-  const L    = LESSONS[li]; if (L.isPrac) return;
+  const L    = LESSONS[li];
+  if (L.isPrac) return;
   const prog = getProg();
-  const all  = L.exercises.every((_,i) => prog.exResults[`${li}_${i}`]===true);
+  const all  = L.exercises.every((_, i) => prog.exResults[`${li}_${i}`] === true);
   if (all && !prog.completed.includes(li)) {
     prog.completed.push(li);
-    const next = li+1;
-    if (next<LESSONS.length && !prog.unlocked.includes(next)) prog.unlocked.push(next);
-    saveProg();
+    const next = li + 1;
+    if (next < LESSONS.length && !prog.unlocked.includes(next)) prog.unlocked.push(next);
+    ss(store);
     toast('🎉 Lesson complete! Next lesson unlocked.');
     logAct(`${Security.esc(curUser.name)} completed lesson "${Security.esc(L.title)}"`, 'b');
-    renderSB(); updateNavBtns();
+    renderSB();
+    updateNavBtns();
   }
 }
 
@@ -2359,20 +2270,21 @@ function renderPracPage(container) {
 
   let scoreH = '';
   if (sc !== null) {
-    const pct  = Math.round(sc*100);
-    const corr = L.exercises.filter((_,i) => prog.exResults[`4_${i}`]).length;
+    const pct  = Math.round(sc * 100);
+    const corr = L.exercises.filter((_, i) => prog.exResults[`4_${i}`]).length;
     scoreH = `<div class="score-card ${passed?'pass':'fail'}">
       <div class="score-big">${pct}%</div>
       <div class="score-info">
-        <strong>${passed?'🎉 Congratulations — 100% score!':'Keep going — you need 100% to pass.'}</strong><br>
+        <strong>${passed ? '🎉 Congratulations — 100% score!' : 'Keep going — you need 100% to pass.'}</strong><br>
         ${corr} / ${L.exercises.length} questions correct.
-        ${!passed?'<br><span style="color:var(--red)">Fix the incorrect answers and resubmit.</span>':''}
+        ${!passed ? '<br><span style="color:var(--red)">Fix the incorrect answers and resubmit.</span>' : ''}
       </div>
     </div>`;
   }
+
   let certH = '';
   if (passed) {
-    const saved = curUser.name;
+    const saved = localStorage.getItem(`cert_${curUser.uid}`) || curUser.name;
     certH = `<div class="cert-card">
       <div class="cert-card-ttl">🏆 Download Your Certificate</div>
       <div class="cert-row">
@@ -2396,214 +2308,261 @@ function renderPracPage(container) {
     <button class="btn btn-amber" style="padding:9px 20px;font-size:13px" onclick="submitPrac()">✔ Submit Assessment</button>
     <span style="font-size:11.5px;color:var(--txt3)">Complete and run all queries first.</span>
   </div>`;
+
   container.innerHTML = html;
   attachExTAs(4, L.exercises.length);
   refreshExBadges(L, 4);
 }
 
-window.submitPrac = function() {
+function submitPrac() {
   if (!requireSession()) return;
   const L    = LESSONS[4];
   const prog = getProg();
-  const corr = L.exercises.filter((_,i) => prog.exResults[`4_${i}`]===true).length;
-  prog.practiseScore  = corr/L.exercises.length;
-  prog.practisePassed = prog.practiseScore===1;
+  const corr = L.exercises.filter((_, i) => prog.exResults[`4_${i}`] === true).length;
+  prog.practiseScore  = corr / L.exercises.length;
+  prog.practisePassed = prog.practiseScore === 1;
   if (prog.practisePassed && !prog.completed.includes(4)) {
     prog.completed.push(4);
-    renderSB(); toast('🏆 Perfect score! Certificate unlocked!');
+    renderSB();
+    toast('🏆 Perfect score! Certificate unlocked!');
     logAct(`${Security.esc(curUser.name)} passed PRACTISE with 100%`, 'b');
   } else if (!prog.practisePassed) {
     toast(`Score: ${Math.round(prog.practiseScore*100)}% — need 100% to pass`, 'warn');
   }
-  saveProg(); updateNavBtns();
+  ss(store);
+  updateNavBtns();
   renderPracPage(document.getElementById('lscroll'));
   attachExTAs(4, L.exercises.length);
   refreshExBadges(L, 4);
-};
+}
 
 /* ═══════════════════════════════════════════════════════
    CERTIFICATE
 ═══════════════════════════════════════════════════════ */
-window.genCert = function() {
+function genCert() {
   const prog = getProg();
-  if (!prog.practisePassed) { toast('Score 100% first!','err'); return; }
+  if (!prog.practisePassed) { toast('Score 100% first!', 'err'); return; }
   const ni   = document.getElementById('certName');
   const name = Security.sanitize(ni ? ni.value : curUser.name, 80);
-  if (!name) { toast('Enter your full name.','err'); return; }
+  if (!name) { toast('Enter your full name.', 'err'); return; }
+  localStorage.setItem(`cert_${curUser.uid}`, name);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
-  const W=297, H=210;
+  const W = 297, H = 210;
   doc.setFillColor(14,17,23); doc.rect(0,0,W,H,'F');
   doc.setDrawColor(245,166,35); doc.setLineWidth(1.5); doc.rect(10,10,W-20,H-20);
   doc.setDrawColor(232,131,10); doc.setLineWidth(0.4); doc.rect(14,14,W-28,H-28);
   doc.setFillColor(22,27,36); doc.rect(10,10,W-20,25,'F');
   doc.setTextColor(245,166,35); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text('HP PRIMARY SCHOOL', W/2,21,{align:'center'});
+  doc.text('HP PRIMARY SCHOOL', W/2, 21, {align:'center'});
   doc.setTextColor(143,163,188); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text('SQL Fundamentals Course  ·  northgreen.ac.ug', W/2,29,{align:'center'});
+  doc.text('SQL Fundamentals Course  ·  northgreen.ac.ug', W/2, 29, {align:'center'});
   doc.setTextColor(245,166,35); doc.setFontSize(22); doc.setFont('helvetica','bold');
-  doc.text('CERTIFICATE OF COMPLETION', W/2,56,{align:'center'});
+  doc.text('CERTIFICATE OF COMPLETION', W/2, 56, {align:'center'});
   doc.setDrawColor(245,166,35); doc.setLineWidth(0.6); doc.line(55,61,W-55,61);
   doc.setTextColor(143,163,188); doc.setFontSize(10); doc.setFont('helvetica','normal');
-  doc.text('This is to certify that', W/2,75,{align:'center'});
+  doc.text('This is to certify that', W/2, 75, {align:'center'});
   doc.setTextColor(220,232,245); doc.setFontSize(26); doc.setFont('helvetica','bold');
-  doc.text(name, W/2,94,{align:'center'});
+  doc.text(name, W/2, 94, {align:'center'});
   const nw = doc.getTextWidth(name);
-  doc.setDrawColor(62,207,110); doc.setLineWidth(0.5); doc.line(W/2-nw/2,98,W/2+nw/2,98);
+  doc.setDrawColor(62,207,110); doc.setLineWidth(0.5); doc.line(W/2-nw/2, 98, W/2+nw/2, 98);
   doc.setTextColor(143,163,188); doc.setFontSize(10); doc.setFont('helvetica','normal');
-  doc.text('has successfully completed the course', W/2,110,{align:'center'});
+  doc.text('has successfully completed the course', W/2, 110, {align:'center'});
   doc.setTextColor(91,156,246); doc.setFontSize(18); doc.setFont('helvetica','bold');
-  doc.text('SQL Fundamentals', W/2,124,{align:'center'});
+  doc.text('SQL Fundamentals', W/2, 124, {align:'center'});
   doc.setTextColor(62,207,110); doc.setFontSize(11); doc.setFont('helvetica','bold');
-  doc.text('With a perfect score of 100%', W/2,135,{align:'center'});
+  doc.text('With a perfect score of 100%', W/2, 135, {align:'center'});
   doc.setTextColor(143,163,188); doc.setFontSize(9); doc.setFont('helvetica','normal');
-  const td = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  doc.text(`Date Issued: ${td}`, W/2,148,{align:'center'});
+  const td = new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+  doc.text(`Date Issued: ${td}`, W/2, 148, {align:'center'});
   doc.setDrawColor(46,58,78); doc.setLineWidth(0.3); doc.line(55,160,W-55,160);
   doc.setTextColor(90,112,144); doc.setFontSize(7.5);
-  doc.text('HP Primary School  ·  SQL Fundamentals  ·  northgreen.ac.ug', W/2,167,{align:'center'});
-  doc.text('Email certificate to: michaelkalanda@northgreen.ac.ug', W/2,173,{align:'center'});
+  doc.text('HP Primary School  ·  SQL Fundamentals  ·  northgreen.ac.ug', W/2, 167, {align:'center'});
+  doc.text('Email certificate to: michaelkalanda@northgreen.ac.ug', W/2, 173, {align:'center'});
   doc.save(`SQL_Certificate_${name.replace(/[^a-z0-9]/gi,'_')}.pdf`);
-  const note = document.getElementById('certNote'); if (note) note.style.display='block';
+  const note = document.getElementById('certNote'); if (note) note.style.display = 'block';
   toast('Certificate downloaded! 🏆');
-};
+}
 
 /* ═══════════════════════════════════════════════════════
    NAVIGATION
 ═══════════════════════════════════════════════════════ */
-window.nav = function(dir) {
+function nav(dir) {
   if (!requireSession()) return;
-  const ni = curLI+dir;
-  if (ni<0||ni>=LESSONS.length) return;
-  if (!getProg().unlocked.includes(ni)) { toast('Complete the current lesson first.','warn'); return; }
+  const ni = curLI + dir;
+  if (ni < 0 || ni >= LESSONS.length) return;
+  if (!getProg().unlocked.includes(ni)) { toast('Complete the current lesson first.', 'warn'); return; }
   loadLesson(ni);
-};
+}
 
 function updateNavBtns() {
   const prog   = getProg();
   const done   = prog.completed.includes(curLI);
-  const isFirst = curLI===0, isLast = curLI===LESSONS.length-1;
-  ['btnPrev','btnPrevTop'].forEach(id => { const b=document.getElementById(id); if(b) b.disabled=isFirst; });
-  ['btnNext','btnNextTop'].forEach(id => { const b=document.getElementById(id); if(b) b.disabled=!done||isLast; });
+  const isFirst = curLI === 0;
+  const isLast  = curLI === LESSONS.length - 1;
+  ['btnPrev','btnPrevTop'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = isFirst; });
+  ['btnNext','btnNextTop'].forEach(id => { const b = document.getElementById(id); if (b) b.disabled = !done || isLast; });
   const db2 = document.getElementById('doneBadge');
-  if (db2) { if(done) db2.classList.add('show'); else db2.classList.remove('show'); }
+  if (db2) { if (done) db2.classList.add('show'); else db2.classList.remove('show'); }
 }
 
 /* ═══════════════════════════════════════════════════════
    SCRATCH PAD
 ═══════════════════════════════════════════════════════ */
-window.runScratch = function() {
+function runScratch() {
   if (!requireSession()) return;
-  if (!db) { toast('Database loading…','err'); return; }
-  const sql = document.getElementById('scrEd').value.trim(); if (!sql) return;
+  if (!db) { toast('Database loading…', 'err'); return; }
+  const sql = document.getElementById('scrEd').value.trim();
+  if (!sql) return;
   const t0  = performance.now();
   const rb  = document.getElementById('scrResult');
   const st  = document.getElementById('scrStat');
   const rr  = document.getElementById('scrRows');
   const rt  = document.getElementById('scrTime');
   let r, err;
-  try { r = db.exec(sql); } catch(e) { err = e.message; }
-  if (rt) rt.textContent = `${(performance.now()-t0).toFixed(1)}ms`;
+  try { r = db.exec(sql); } catch (e) { err = e.message; }
+  if (rt) rt.textContent = `${(performance.now() - t0).toFixed(1)}ms`;
   if (err) {
-    if (rb) rb.innerHTML=`<div style="padding:9px 12px;font-family:var(--mono);font-size:11.5px;color:var(--red)">❌ ${Security.esc(err)}</div>`;
-    if (st) { st.className='res-stat s-err'; st.textContent='error'; }
-    if (rr) rr.style.display='none'; return;
+    if (rb) rb.innerHTML = `<div style="padding:9px 12px;font-family:var(--mono);font-size:11.5px;color:var(--red)">❌ ${Security.esc(err)}</div>`;
+    if (st) { st.className = 'res-stat s-err'; st.textContent = 'error'; }
+    if (rr) rr.style.display = 'none';
+    return;
   }
-  if (!r||!r.length) {
-    if (rb) rb.innerHTML=`<div class="r-empty"><span style="font-size:20px;opacity:.3">✓</span>Query ran — no rows returned</div>`;
-    if (st) { st.className='res-stat s-ok'; st.textContent='success'; }
-    if (rr) rr.style.display='none'; return;
+  if (!r || !r.length) {
+    if (rb) rb.innerHTML = `<div class="r-empty"><span style="font-size:20px;opacity:.3">✓</span>Query ran — no rows returned</div>`;
+    if (st) { st.className = 'res-stat s-ok'; st.textContent = 'success'; }
+    if (rr) rr.style.display = 'none';
+    return;
   }
   if (rb) rb.innerHTML = buildRTbl(r[0]);
-  if (st) { st.className='res-stat s-ok'; st.textContent='success'; }
-  if (rr) { rr.style.display='block'; rr.textContent=`${r[0].values.length} row${r[0].values.length!==1?'s':''} returned`; }
-};
+  if (st) { st.className = 'res-stat s-ok'; st.textContent = 'success'; }
+  if (rr) { rr.style.display = 'block'; rr.textContent = `${r[0].values.length} row${r[0].values.length !== 1 ? 's' : ''} returned`; }
+}
 
-window.clrScratch = function() {
-  const ed = document.getElementById('scrEd'); if (ed) ed.value=''; updLnums();
-};
+function clrScratch() {
+  const ed = document.getElementById('scrEd'); if (ed) ed.value = '';
+  updLnums();
+}
 
 function updLnums() {
-  const ta=document.getElementById('scrEd'), ln=document.getElementById('scrLnums');
-  if (!ta||!ln) return;
-  ln.textContent = Array.from({length:ta.value.split('\n').length},(_,i)=>i+1).join('\n');
+  const ta = document.getElementById('scrEd');
+  const ln = document.getElementById('scrLnums');
+  if (!ta || !ln) return;
+  ln.textContent = Array.from({length: ta.value.split('\n').length}, (_, i) => i + 1).join('\n');
 }
 
 const sedEl = document.getElementById('scrEd');
 if (sedEl) {
   sedEl.addEventListener('input', updLnums);
-  sedEl.addEventListener('scroll', ()=>{ const ln=document.getElementById('scrLnums'); if(ln) ln.scrollTop=sedEl.scrollTop; });
-  sedEl.addEventListener('keydown', function(e){
-    if(e.key==='Tab'){e.preventDefault();const s=this.selectionStart;this.value=this.value.substring(0,s)+'  '+this.value.substring(this.selectionEnd);this.selectionStart=this.selectionEnd=s+2;updLnums();}
-    if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();runScratch();}
+  sedEl.addEventListener('scroll', () => {
+    const ln = document.getElementById('scrLnums');
+    if (ln) ln.scrollTop = sedEl.scrollTop;
+  });
+  sedEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      const s = this.selectionStart;
+      this.value = this.value.substring(0, s) + '  ' + this.value.substring(this.selectionEnd);
+      this.selectionStart = this.selectionEnd = s + 2;
+      updLnums();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runScratch(); }
   });
 }
 
 /* ═══════════════════════════════════════════════════════
-   RESULT TABLE
+   RESULT TABLE (XSS-safe)
 ═══════════════════════════════════════════════════════ */
 function buildRTbl(result) {
-  const {columns:c, values:v} = result;
-  const head = c.map(x=>`<th>${Security.esc(String(x))}</th>`).join('');
-  const body = v.map(row=>`<tr>${row.map(cell=>cell===null?`<td class="nullc">NULL</td>`:typeof cell==='number'?`<td class="nc">${cell}</td>`:`<td>${Security.esc(String(cell))}</td>`).join('')}</tr>`).join('');
+  const { columns: c, values: v } = result;
+  const head = c.map(x => `<th>${Security.esc(String(x))}</th>`).join('');
+  const body = v.map(row =>
+    `<tr>${row.map(cell =>
+      cell === null ? `<td class="nullc">NULL</td>`
+      : typeof cell === 'number' ? `<td class="nc">${cell}</td>`
+      : `<td>${Security.esc(String(cell))}</td>`
+    ).join('')}</tr>`
+  ).join('');
   return `<table class="rtbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
 }
 
 /* ═══════════════════════════════════════════════════════
    RESIZER
 ═══════════════════════════════════════════════════════ */
-const rzEl=document.getElementById('rzr'), lpEl=document.getElementById('lpanel');
-if (rzEl&&lpEl) {
-  let rzOn=false,rzX=0,rzW=0;
-  rzEl.addEventListener('mousedown',e=>{rzOn=true;rzX=e.clientX;rzW=lpEl.offsetWidth;rzEl.classList.add('drag');document.body.style.cssText='cursor:col-resize;user-select:none';});
-  document.addEventListener('mousemove',e=>{if(!rzOn)return;lpEl.style.width=Math.max(300,Math.min(680,rzW+e.clientX-rzX))+'px';});
-  document.addEventListener('mouseup',()=>{rzOn=false;rzEl.classList.remove('drag');document.body.style.cssText='';});
+const rzEl = document.getElementById('rzr');
+const lpEl = document.getElementById('lpanel');
+if (rzEl && lpEl) {
+  let rzOn = false, rzX = 0, rzW = 0;
+  rzEl.addEventListener('mousedown', e => {
+    rzOn = true; rzX = e.clientX; rzW = lpEl.offsetWidth;
+    rzEl.classList.add('drag'); document.body.style.cssText = 'cursor:col-resize;user-select:none';
+  });
+  document.addEventListener('mousemove', e => {
+    if (!rzOn) return;
+    const nw = Math.max(300, Math.min(680, rzW + e.clientX - rzX));
+    lpEl.style.width = nw + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    rzOn = false; rzEl.classList.remove('drag'); document.body.style.cssText = '';
+  });
 }
 
 /* ═══════════════════════════════════════════════════════
    TOAST
 ═══════════════════════════════════════════════════════ */
-function toast(msg, type='') {
-  const c=document.getElementById('toasts'); if(!c) return;
-  const t=document.createElement('div'); t.className=`toast ${type}`; t.textContent=msg;
+function toast(msg, type = '') {
+  const c = document.getElementById('toasts');
+  if (!c) return;
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
   c.appendChild(t);
-  setTimeout(()=>{ t.style.animation='toastIn .25s ease reverse'; setTimeout(()=>{ if(t.parentNode) t.parentNode.removeChild(t); },250); },3500);
+  setTimeout(() => {
+    t.style.animation = 'toastIn .25s ease reverse';
+    setTimeout(() => { if (t.parentNode) t.parentNode.removeChild(t); }, 250);
+  }, 3500);
 }
 
+/* ═══════════════════════════════════════════════════════
+   ACTIVITY LOG
+═══════════════════════════════════════════════════════ */
+function logAct(msg, color = '') {
+  if (!store.actLog) store.actLog = [];
+  store.actLog.unshift({ msg, color, time: new Date().toLocaleTimeString() });
+  if (store.actLog.length > 100) store.actLog.length = 100;
+  ss(store);
+}
 
 /* ═══════════════════════════════════════════════════════
    ████  ADMIN DASHBOARD
-   All reads come from _usersCache (populated by live sync).
-   All writes go directly to Firebase then cache updates automatically.
 ═══════════════════════════════════════════════════════ */
 function renderAdm() {
-  if (!requireSession()||!curUser.isAdmin) { doLogout(); return; }
+  if (!requireSession() || !curUser.isAdmin) { doLogout(); return; }
   const ttl = document.getElementById('admTtl');
-  if (ttl) ttl.textContent = admSec2.charAt(0).toUpperCase()+admSec2.slice(1);
-  const body = document.getElementById('admBody'); if (!body) return;
+  if (ttl) ttl.textContent = admSec2.charAt(0).toUpperCase() + admSec2.slice(1);
+  const body = document.getElementById('admBody');
+  if (!body) return;
   body.innerHTML = '';
-  if      (admSec2==='overview')  admOverview(body);
-  else if (admSec2==='students')  admStudents(body);
-  else if (admSec2==='progress')  admProgress(body);
-  else if (admSec2==='logs')      admLogs(body);
-  else if (admSec2==='settings')  admSettings(body);
+  if (admSec2 === 'overview')  admOverview(body);
+  else if (admSec2 === 'students') admStudents(body);
+  else if (admSec2 === 'progress') admProgress(body);
+  else if (admSec2 === 'logs')     admLogs(body);
+  else if (admSec2 === 'settings') admSettings(body);
 }
 
-window.admSec = function(sec, el) {
+function admSec(sec, el) {
   admSec2 = sec;
-  document.querySelectorAll('.adm-ni').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.adm-ni').forEach(i => i.classList.remove('active'));
   if (el) el.classList.add('active');
   renderAdm();
-};
+}
 
 function admOverview(body) {
-  const stus   = getStudents();
-  const total  = stus.length;
-  const active = stus.filter(s=>s.progress&&s.progress.lastAccess).length;
-  const passed = stus.filter(s=>s.progress&&s.progress.practisePassed).length;
-  const fin    = stus.filter(s=>s.progress&&s.progress.completed&&s.progress.completed.length>=4).length;
-
-  // Render immediately with cached log from previous fetch, then update async
+  const _stus  = getStudents();
+  const total  = _stus.length;
+  const active = _stus.filter(s => s.progress && s.progress.lastAccess).length;
+  const passed = _stus.filter(s => s.progress && s.progress.practisePassed).length;
+  const fin    = _stus.filter(s => s.progress && s.progress.completed.length >= 4).length;
   body.innerHTML = `
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-n">${total}</div><div class="stat-l">Total Students</div></div>
@@ -2613,31 +2572,27 @@ function admOverview(body) {
     </div>
     <div class="dtw">
       <div class="dth"><span class="dth-ttl">📋 Recent Activity</span></div>
-      <div id="actLogBody" style="padding:14px 16px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div>
+      <div style="padding:14px 16px">
+        ${(store.actLog || []).slice(0,15).map(l =>
+          `<div class="log-e"><div class="log-d ${Security.esc(l.color)}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time)}</div></div>`
+        ).join('') || '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>'}
+      </div>
     </div>`;
-
-  getActLog(15).then(logs => {
-    const el = document.getElementById('actLogBody'); if (!el) return;
-    el.innerHTML = logs.length
-      ? logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
-      : '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>';
-  });
 }
 
 function admStudents(body) {
-  const rows = getStudents().map((s,i)=>{
-    const p       = s.progress || {};
-    const comp    = p.completed || [];
-    const lessDone= comp.filter(x=>x<4).length;
-    const pracPass= p.practisePassed?1:0;
-    const done    = lessDone+pracPass;
-    const pct     = Math.round(done/5*100);
-    const ll      = p.lastAccess ? new Date(p.lastAccess).toLocaleDateString('en-GB') : 'Never';
-    const isActive= s.active!==false;
-    return `<tr data-uid="${Security.esc(s.uid)}" class="${isActive?'':'stu-inactive'}">
+  const rows = getStudents().map((s, i) => {
+    const p    = s.progress || dp();
+    const lessDone = p.completed.filter(x => x < 4).length;
+    const pracPass = p.practisePassed ? 1 : 0;
+    const done = lessDone + pracPass;
+    const pct  = Math.round(done / 5 * 100);
+    const ll   = p.lastAccess ? new Date(p.lastAccess).toLocaleDateString('en-GB') : 'Never';
+    const active = s.active !== false;
+    return `<tr data-uid="${Security.esc(s.uid)}" class="${active?'':'stu-inactive'}">
       <td><input type="checkbox" class="stu-cb" data-uid="${Security.esc(s.uid)}" onchange="updateBulkBar()"></td>
       <td>${i+1}</td>
-      <td><strong>${Security.esc(s.name)}</strong>${isActive?'':' <span class="badge badge-red" style="font-size:9px">Inactive</span>'}</td>
+      <td><strong>${Security.esc(s.name)}</strong>${active?'':' <span class="badge badge-red" style="font-size:9px">Inactive</span>'}</td>
       <td><span style="font-family:var(--mono);font-size:11.5px">${Security.esc(s.username)}</span></td>
       <td><div style="display:flex;align-items:center;gap:7px"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div><span style="font-size:11px;color:var(--txt3)">${pct}%</span></div></td>
       <td style="font-size:11.5px;color:var(--txt3)">${Security.esc(ll)}</td>
@@ -2650,8 +2605,8 @@ function admStudents(body) {
       </div></td>
     </tr>`;
   }).join('');
-
   body.innerHTML = `
+    <!-- Bulk Action Bar -->
     <div class="bulk-bar" id="bulkBar" style="display:none">
       <span class="bulk-cnt" id="bulkCnt">0 selected</span>
       <div class="bulk-acts">
@@ -2683,26 +2638,27 @@ function admStudents(body) {
     </div>`;
 }
 
-window.filterStu = function() {
+function filterStu() {
   const q = document.getElementById('stuSearch').value.toLowerCase();
-  document.querySelectorAll('#stuTable tbody tr').forEach(r=>{ r.style.display=r.textContent.toLowerCase().includes(q)?'':'none'; });
-};
+  document.querySelectorAll('#stuTable tbody tr').forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+  });
+}
 
 function admProgress(body) {
-  const rows = getStudents().map(s=>{
-    const p  = s.progress || {};
-    const comp = p.completed || [];
-    const lD = i => comp.includes(i)?'<span class="badge badge-green">✓</span>':'<span class="badge badge-red">—</span>';
-    const sc = p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'—';
-    const sCol = p.practisePassed?'var(--green)':(p.practiseScore?'var(--red)':'var(--txt3)');
-    const lessDone = comp.filter(x=>x<4).length;
-    const overallPct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
-    const st = p.practisePassed?'<span class="badge badge-green">✅ Complete</span>'
-              :p.lastAccess?'<span class="badge badge-blue">In Progress</span>'
-              :'<span style="color:var(--txt3);font-size:11px">Not Started</span>';
+  const rows = getStudents().map(s => {
+    const p    = s.progress || dp();
+    const lD   = i => p.completed.includes(i) ? '<span class="badge badge-green">✓</span>' : '<span class="badge badge-red">—</span>';
+    const sc   = p.practiseScore !== null ? Math.round(p.practiseScore * 100) + '%' : '—';
+    const sCol = p.practisePassed ? 'var(--green)' : (p.practiseScore ? 'var(--red)' : 'var(--txt3)');
+    const lessDone = p.completed.filter(x => x < 4).length;
+    const overallPct = Math.round((lessDone + (p.practisePassed ? 1 : 0)) / 5 * 100);
+    const st   = p.practisePassed ? '<span class="badge badge-green">✅ Complete</span>'
+               : p.lastAccess ? '<span class="badge badge-blue">In Progress</span>'
+               : '<span style="color:var(--txt3);font-size:11px">Not Started</span>';
     return `<tr>
       <td><strong>${Security.esc(s.name)}</strong></td>
-      ${[0,1,2,3].map(i=>`<td style="text-align:center">${lD(i)}</td>`).join('')}
+      ${[0,1,2,3].map(i => `<td style="text-align:center">${lD(i)}</td>`).join('')}
       <td style="text-align:center;font-weight:700;color:${sCol}">${Security.esc(sc)}</td>
       <td style="text-align:center"><div style="display:flex;align-items:center;gap:5px;justify-content:center"><div class="mini-bar" style="width:60px"><div class="mini-fill" style="width:${overallPct}%"></div></div><span style="font-size:11px;color:var(--txt3)">${overallPct}%</span></div></td>
       <td>${st}</td>
@@ -2723,27 +2679,41 @@ function admProgress(body) {
     </div>`;
 }
 
-async function admLogs(body) {
-  body.innerHTML = `<div class="scard"><div class="scard-ttl">📋 Activity Log <button class="btn btn-xs btn-red" style="margin-left:auto" onclick="clrLogs()">Clear All</button></div><div id="admLogList" style="min-height:40px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div></div>`;
-  const logs = await getActLog(100);
-  const el = document.getElementById('admLogList'); if (!el) return;
-  el.innerHTML = logs.length
-    ? `<span style="font-size:11px;color:var(--txt3);display:block;margin-bottom:8px">${logs.length} entries</span>`
-      + logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
-    : '<div style="color:var(--txt3);font-size:12.5px">No activity logged yet.</div>';
+function admLogs(body) {
+  const logs = (store.actLog || []);
+  body.innerHTML = `
+    <div class="scard">
+      <div class="scard-ttl">📋 Activity Log
+        <span style="font-size:11px;color:var(--txt3);font-weight:400">(${logs.length} entries)</span>
+        <button class="btn btn-xs btn-red" style="margin-left:auto" onclick="clrLogs()">Clear All</button>
+      </div>
+      ${logs.map(l =>
+        `<div class="log-e"><div class="log-d ${Security.esc(l.color)}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time)}</div></div>`
+      ).join('') || '<div style="color:var(--txt3);font-size:12.5px">No activity logged yet.</div>'}
+    </div>`;
+}
+
+function clrLogs() {
+  if (!confirm('Clear all activity logs? This cannot be undone.')) return;
+  store.actLog = [];
+  ss(store);
+  renderAdm();
+  toast('Logs cleared.');
 }
 
 function admSettings(body) {
-  const myAdmin = findUser(curUser.uid);
-  const isSA    = !!(myAdmin&&myAdmin.isSuperAdmin);
-  const admRows = isSA ? getAdmins().map((a,i)=>`
+  const myAdmin = store.users.find(u => u.uid === curUser.uid);
+  const isSA    = !!(myAdmin && myAdmin.isSuperAdmin);
+
+  // Build admin accounts table (only visible to super admin)
+  const admRows = isSA ? getAdmins().map((a, i) => `
     <tr>
       <td>${i+1}</td>
-      <td><strong>${Security.esc(a.name)}</strong>${a.isSuperAdmin?' <span class="badge badge-amber" style="font-size:9px">Super Admin</span>':''}</td>
+      <td><strong>${Security.esc(a.name)}</strong>${a.isSuperAdmin ? ' <span class="badge badge-amber" style="font-size:9px">Super Admin</span>' : ''}</td>
       <td><span style="font-family:var(--mono);font-size:11.5px">${Security.esc(a.username)}</span></td>
       <td><div class="act-row">
-        ${!a.isSuperAdmin?`<button class="btn btn-xs" onclick="editAdm('${Security.esc(a.uid)}')">✏️ Edit</button>
-        <button class="btn btn-xs btn-red" onclick="delAdm('${Security.esc(a.uid)}')">🗑 Delete</button>`:'<span style="font-size:11px;color:var(--txt3)">—</span>'}
+        ${!a.isSuperAdmin ? `<button class="btn btn-xs" onclick="editAdm('${Security.esc(a.uid)}')">✏️ Edit</button>
+        <button class="btn btn-xs btn-red" onclick="delAdm('${Security.esc(a.uid)}')">🗑 Delete</button>` : '<span style="font-size:11px;color:var(--txt3)">—</span>'}
       </div></td>
     </tr>`).join('') : '';
 
@@ -2761,14 +2731,21 @@ function admSettings(body) {
       <div class="fg"><label class="inp-label">Confirm Password</label><input class="inp" type="password" id="setPass2" placeholder="Confirm" maxlength="100" style="max-width:300px"></div>
       <button class="btn btn-amber" onclick="saveAdmCreds()">💾 Save Credentials</button>
     </div>
-    ${isSA?`
+
+    ${isSA ? `
     <div class="scard">
-      <div class="scard-ttl">👮 Admin Accounts <button class="btn btn-sm btn-amber" style="margin-left:auto" onclick="openM('mAddAdm')">+ Add Admin</button></div>
-      <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">The Super Admin cannot be deleted.</p>
+      <div class="scard-ttl">👮 Admin Accounts
+        <button class="btn btn-sm btn-amber" style="margin-left:auto" onclick="openM('mAddAdm')">+ Add Admin</button>
+      </div>
+      <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">Manage admin accounts. The Super Admin cannot be deleted.</p>
       <div style="overflow-x:auto">
-      <table class="dt"><thead><tr><th>#</th><th>Name</th><th>Username</th><th>Actions</th></tr></thead>
-      <tbody>${admRows}</tbody></table></div>
-    </div>`:''}
+      <table class="dt">
+        <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Actions</th></tr></thead>
+        <tbody>${admRows}</tbody>
+      </table>
+      </div>
+    </div>` : ''}
+
     <div class="scard">
       <div class="scard-ttl">🎓 Lesson Management</div>
       <p style="font-size:12.5px;color:var(--txt2);margin-bottom:12px">Bulk actions for all students.</p>
@@ -2780,456 +2757,575 @@ function admSettings(body) {
     <div class="scard">
       <div class="scard-ttl">ℹ️ System Info</div>
       <p style="font-size:12.5px;color:var(--txt2)">Students: <strong>${getStudents().length}</strong> &nbsp;|&nbsp; Admins: <strong>${getAdmins().length}</strong></p>
-      <p style="font-size:12.5px;color:var(--txt2);margin-top:5px">Data: <strong>Firebase Realtime Database (live sync)</strong></p>
+      <p style="font-size:12.5px;color:var(--txt2);margin-top:5px">Activity entries: <strong>${(store.actLog||[]).length}</strong></p>
+      <p style="font-size:12.5px;color:var(--txt2);margin-top:5px">Storage: <strong>Browser localStorage (per-device)</strong></p>
     </div>`;
 }
 
 let _admPassVis = false;
-window.toggleAdmPass = function() {
+function toggleAdmPass() {
   _admPassVis = !_admPassVis;
-  const inp=document.getElementById('setPass'), btn2=document.getElementById('admPassBtn');
-  if(inp) inp.type=_admPassVis?'text':'password';
-  if(btn2) btn2.textContent=_admPassVis?'🙈':'👁';
-};
+  const inp = document.getElementById('setPass');
+  const btn = document.getElementById('admPassBtn');
+  if (inp) inp.type = _admPassVis ? 'text' : 'password';
+  if (btn) btn.textContent = _admPassVis ? '🙈' : '👁';
+}
 
-window.saveAdmCreds = async function() {
-  const u  = Security.sanitize(document.getElementById('setUser').value,50);
-  const p1 = Security.sanitize(document.getElementById('setPass').value,100);
-  const p2 = Security.sanitize(document.getElementById('setPass2').value,100);
-  if (!u) { toast('Username cannot be empty.','err'); return; }
-  if (p1&&p1!==p2) { toast('Passwords do not match.','err'); return; }
-  if (p1&&p1.length<6) { toast('Password must be at least 6 characters.','err'); return; }
-  const others = Object.values(_usersCache).filter(x=>x.uid!==curUser.uid&&x.username===u);
-  if (others.length) { toast('Username already taken.','err'); return; }
-  const updates = { username: u };
-  if (p1) updates.password = p1;
-  await fbUpd(`users/${curUser.uid}`, updates);
+function saveAdmCreds() {
+  const u  = Security.sanitize(document.getElementById('setUser').value, 50);
+  const p1 = Security.sanitize(document.getElementById('setPass').value, 100);
+  const p2 = Security.sanitize(document.getElementById('setPass2').value, 100);
+  if (!u) { toast('Username cannot be empty.', 'err'); return; }
+  if (p1 && p1 !== p2) { toast('Passwords do not match.', 'err'); return; }
+  if (p1 && p1.length < 6) { toast('Password must be at least 6 characters.', 'err'); return; }
+  // Check username not taken by someone else
+  if (store.users.find(x => x.uid !== curUser.uid && x.username === u)) {
+    toast('Username already taken.', 'err'); return;
+  }
+  const me = store.users.find(x => x.uid === curUser.uid);
+  if (!me) { toast('Could not find your account.', 'err'); return; }
+  me.username = u;
   curUser.username = u;
+  if (p1) me.password = p1;
+  ss(store);
   toast('Credentials updated!');
-  logAct(`Admin "${Security.esc(u)}" updated their credentials`,'');
-};
+  logAct(`Admin "${Security.esc(u)}" updated their credentials`, '');
+}
 
-/* ── STUDENT CRUD ── */
-window.addStu = async function() {
-  const name = Security.sanitize(document.getElementById('aName').value,80);
-  const user = Security.sanitize(document.getElementById('aUser').value,50);
-  const pass = Security.sanitize(document.getElementById('aPass').value,100);
-  if (!name||!user||!pass) { toast('All fields required.','err'); return; }
-  if (pass.length<4) { toast('Password must be at least 4 characters.','err'); return; }
-  if (allUsernames().includes(user)) { toast('Username already taken.','err'); return; }
-  const uid = 's'+Date.now();
-  await fbSet(`users/${uid}`, { uid, role:'student', name, username:user, password:pass, active:true, progress:dp() });
+function unlkAllStus() {
+  if (!confirm('Unlock all 4 lessons + practise for ALL students?')) return;
+  getStudents().forEach(s => {
+    if (!s.progress) s.progress = dp();
+    s.progress.unlocked = [0, 1, 2, 3, 4];
+  });
+  ss(store);
+  toast('All lessons unlocked for all students.');
+  logAct('Admin unlocked all lessons for all students', 'b');
+}
+
+function rstAllProg() {
+  if (!confirm('RESET all student progress? This cannot be undone!')) return;
+  getStudents().forEach(s => { s.progress = dp(); });
+  ss(store);
+  toast('All student progress has been reset.', 'warn');
+  logAct('Admin reset all student progress', 'r');
+}
+
+function expCSV() {
+  const rows = [['Name','Username','L1 Done','L2 Done','L3 Done','L4 Done','Practise Score','Passed']];
+  getStudents().forEach(s => {
+    const p = s.progress || dp();
+    rows.push([
+      s.name, s.username,
+      ...[0,1,2,3].map(i => p.completed.includes(i) ? 'Yes' : 'No'),
+      p.practiseScore !== null ? Math.round(p.practiseScore * 100) + '%' : '0%',
+      p.practisePassed ? 'Yes' : 'No'
+    ]);
+  });
+  const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hp_student_progress.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  toast('CSV exported!');
+}
+
+/* ─── STUDENT CRUD ─── */
+function addStu() {
+  const name = Security.sanitize(document.getElementById('aName').value, 80);
+  const user = Security.sanitize(document.getElementById('aUser').value, 50);
+  const pass = Security.sanitize(document.getElementById('aPass').value, 100);
+  if (!name || !user || !pass) { toast('All fields required.', 'err'); return; }
+  if (pass.length < 4) { toast('Password must be at least 4 characters.', 'err'); return; }
+  if (allUsernames().includes(user)) { toast('Username already taken.', 'err'); return; }
+  store.users.push({ uid: 's' + Date.now(), role:'student', name, username: user, password: pass, active: true, progress: dp() });
+  ss(store);
   closeM('mAddStu');
-  ['aName','aUser','aPass'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['aName','aUser','aPass'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderAdm();
   toast(`"${Security.esc(name)}" added!`);
   logAct(`Admin added student "${Security.esc(name)}"`, 'g');
-};
+}
 
-window.editStu = function(uid) {
-  const s = findUser(uid); if (!s) return;
+function editStu(uid) {
+  const s = findUser(uid);
+  if (!s) return;
   document.getElementById('eUid').value  = uid;
   document.getElementById('eName').value = s.name;
   document.getElementById('eUser').value = s.username;
   document.getElementById('ePass').value = '';
   openM('mEditStu');
-};
+}
 
-window.saveEditStu = async function() {
-  const uid = document.getElementById('eUid').value;
-  const s   = findUser(uid); if (!s) return;
-  const nu  = Security.sanitize(document.getElementById('eUser').value,50);
-  const nn  = Security.sanitize(document.getElementById('eName').value,80);
-  const np  = Security.sanitize(document.getElementById('ePass').value,100);
-  if (!nu||!nn) { toast('Name and username required.','err'); return; }
-  if (Object.values(_usersCache).find(x=>x.uid!==uid&&x.username===nu)) { toast('Username already taken.','err'); return; }
-  if (np&&np.length<4) { toast('Password must be at least 4 characters.','err'); return; }
-  const updates = { name:nn, username:nu };
-  if (np) updates.password = np;
-  await fbUpd(`users/${uid}`, updates);
+function saveEditStu() {
+  const uid  = document.getElementById('eUid').value;
+  const s    = findUser(uid);
+  if (!s) return;
+  const nu   = Security.sanitize(document.getElementById('eUser').value, 50);
+  const nn   = Security.sanitize(document.getElementById('eName').value, 80);
+  const np   = Security.sanitize(document.getElementById('ePass').value, 100);
+  if (!nu || !nn) { toast('Name and username required.', 'err'); return; }
+  if (store.users.find(x => x.uid !== uid && x.username === nu)) { toast('Username already taken.', 'err'); return; }
+  if (np && np.length < 4) { toast('Password must be at least 4 characters.', 'err'); return; }
+  s.name = nn; s.username = nu;
+  if (np) s.password = np;
+  ss(store);
   closeM('mEditStu');
+  renderAdm();
   toast('Student updated.');
-  logAct(`Admin updated student "${Security.esc(nn)}"`, 'b');
-};
+  logAct(`Admin updated student "${Security.esc(s.name)}"`, 'b');
+}
 
-window.delStu = async function(uid) {
-  const s = findUser(uid); if (!s) return;
+function delStu(uid) {
+  const s = findUser(uid);
+  if (!s) return;
   if (!confirm(`Delete "${s.name}"? This cannot be undone.`)) return;
-  await fbDel(`users/${uid}`);
+  store.users = store.users.filter(x => x.uid !== uid);
+  ss(store);
+  renderAdm();
   toast(`"${Security.esc(s.name)}" deleted.`, 'warn');
   logAct(`Admin deleted student "${Security.esc(s.name)}"`, 'r');
-};
+}
 
-window.rstStu = async function(uid) {
-  const s = findUser(uid); if (!s) return;
+function rstStu(uid) {
+  const s = findUser(uid);
+  if (!s) return;
   if (!confirm(`Reset all progress for "${s.name}"? This cannot be undone.`)) return;
-  await fbSet(`users/${uid}/progress`, dp());
+  s.progress = dp();
+  ss(store);
+  renderAdm();
   toast(`Progress reset for ${Security.esc(s.name)}.`);
   logAct(`Admin reset progress for "${Security.esc(s.name)}"`, '');
-};
+}
 
-window.unlkAll = async function(uid) {
-  const s = findUser(uid); if (!s) return;
-  const prog = s.progress || dp();
-  prog.unlocked = [0,1,2,3,4];
-  await fbSet(`users/${uid}/progress`, prog);
+function unlkAll(uid) {
+  const s = findUser(uid);
+  if (!s) return;
+  if (!s.progress) s.progress = dp();
+  s.progress.unlocked = [0, 1, 2, 3, 4];
+  ss(store);
+  renderAdm();
   toast(`All lessons unlocked for ${Security.esc(s.name)}.`);
   logAct(`Admin unlocked all lessons for "${Security.esc(s.name)}"`, 'b');
-};
+}
 
-window.adjScore = function() {}; // not used in this app
-
-window.viewProg = function(uid) {
-  const s = findUser(uid); if (!s) return;
-  const p   = s.progress || {};
-  const comp = p.completed || [];
-  const ttl = document.getElementById('mViewProgTtl'); if(ttl) ttl.textContent=`📈 Progress: ${s.name}`;
+function viewProg(uid) {
+  const s = findUser(uid);
+  if (!s) return;
+  const p   = s.progress || dp();
+  const ttl = document.getElementById('mViewProgTtl');
+  if (ttl) ttl.textContent = `📈 Progress: ${s.name}`;
   const lns = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
-  let html = `<table class="dt" style="margin-bottom:14px"><thead><tr><th>Lesson</th><th>Status</th><th>Exercises</th></tr></thead><tbody>`;
-  lns.forEach((ln,i)=>{
-    const done   = comp.includes(i);
+  let html = `<table class="dt" style="margin-bottom:14px">
+    <thead><tr><th>Lesson</th><th>Status</th><th>Exercises</th></tr></thead><tbody>`;
+  lns.forEach((ln, i) => {
+    const done   = p.completed.includes(i);
     const L      = LESSONS[i];
-    const exDone = L.exercises.filter((_,j)=>p.exResults&&p.exResults[`${i}_${j}`]).length;
-    html+=`<tr>
+    const exDone = L.exercises.filter((_, j) => p.exResults[`${i}_${j}`]).length;
+    html += `<tr>
       <td>${Security.esc(ln)}</td>
-      <td>${done?'<span class="badge badge-green">✓ Complete</span>':'<span class="badge badge-blue">In Progress</span>'}</td>
-      <td>${i<4?`${exDone} / ${L.exercises.length}`:(p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'Not attempted')}</td>
+      <td>${done ? '<span class="badge badge-green">✓ Complete</span>' : '<span class="badge badge-blue">In Progress</span>'}</td>
+      <td>${i < 4 ? `${exDone} / ${L.exercises.length}` : (p.practiseScore !== null ? Math.round(p.practiseScore*100)+'%' : 'Not attempted')}</td>
     </tr>`;
   });
-  html+=`</tbody></table><p style="font-size:12.5px;color:var(--txt2)">Last access: <strong>${p.lastAccess?new Date(p.lastAccess).toLocaleString('en-GB'):'Never'}</strong></p>`;
-  const mb=document.getElementById('mViewProgBody'); if(mb) mb.innerHTML=html;
+  html += `</tbody></table>
+    <p style="font-size:12.5px;color:var(--txt2)">Last access: <strong>${p.lastAccess ? new Date(p.lastAccess).toLocaleString('en-GB') : 'Never'}</strong></p>`;
+  const mb = document.getElementById('mViewProgBody'); if (mb) mb.innerHTML = html;
   openM('mViewProg');
-};
+}
 
-/* ── ADMIN CRUD ── */
-window.addAdm = async function() {
-  if (!curUser.isSuperAdmin) { toast('Only the Super Admin can add admins.','err'); return; }
-  const name  = Security.sanitize(document.getElementById('aaName').value,80);
-  const user  = Security.sanitize(document.getElementById('aaUser').value,50);
-  const pass  = Security.sanitize(document.getElementById('aaPass').value,100);
-  const pass2 = Security.sanitize(document.getElementById('aaPass2').value,100);
-  if (!name||!user||!pass) { toast('All fields required.','err'); return; }
-  if (pass.length<6) { toast('Admin password must be at least 6 characters.','err'); return; }
-  if (pass!==pass2) { toast('Passwords do not match.','err'); return; }
-  if (allUsernames().includes(user)) { toast('Username already taken.','err'); return; }
-  const uid = 'a'+Date.now();
-  await fbSet(`users/${uid}`, { uid, role:'admin', name, username:user, password:pass, isSuperAdmin:false });
+
+/* ─── ADMIN CRUD ─── */
+function addAdm() {
+  if (!curUser.isSuperAdmin) { toast('Only the Super Admin can add admins.', 'err'); return; }
+  const name = Security.sanitize(document.getElementById('aaName').value, 80);
+  const user = Security.sanitize(document.getElementById('aaUser').value, 50);
+  const pass = Security.sanitize(document.getElementById('aaPass').value, 100);
+  const pass2 = Security.sanitize(document.getElementById('aaPass2').value, 100);
+  if (!name || !user || !pass) { toast('All fields required.', 'err'); return; }
+  if (pass.length < 6) { toast('Admin password must be at least 6 characters.', 'err'); return; }
+  if (pass !== pass2) { toast('Passwords do not match.', 'err'); return; }
+  if (allUsernames().includes(user)) { toast('Username already taken.', 'err'); return; }
+  store.users.push({
+    uid: 'a' + Date.now(),
+    role: 'admin',
+    name,
+    username: user,
+    password: pass,
+    isSuperAdmin: false
+  });
+  ss(store);
   closeM('mAddAdm');
-  ['aaName','aaUser','aaPass','aaPass2'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
-  admSec2='settings';
+  ['aaName','aaUser','aaPass','aaPass2'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  admSec2 = 'settings';
+  renderAdm();
   toast(`Admin "${Security.esc(name)}" added!`);
   logAct(`Super Admin added new admin "${Security.esc(name)}"`, 'g');
-};
+}
 
-window.editAdm = function(uid) {
-  if (!curUser.isSuperAdmin) { toast('Only the Super Admin can edit admins.','err'); return; }
-  const a = findUser(uid); if (!a||a.isSuperAdmin) { toast('Cannot edit this account.','err'); return; }
+function editAdm(uid) {
+  if (!curUser.isSuperAdmin) { toast('Only the Super Admin can edit admins.', 'err'); return; }
+  const a = store.users.find(x => x.uid === uid && x.role === 'admin');
+  if (!a || a.isSuperAdmin) { toast('Cannot edit this account.', 'err'); return; }
   document.getElementById('eaUid').value  = uid;
   document.getElementById('eaName').value = a.name;
   document.getElementById('eaUser').value = a.username;
   document.getElementById('eaPass').value = '';
   openM('mEditAdm');
-};
+}
 
-window.saveEditAdm = async function() {
+function saveEditAdm() {
   const uid = document.getElementById('eaUid').value;
-  const a   = findUser(uid); if (!a||a.isSuperAdmin) { toast('Cannot edit this account.','err'); return; }
-  const nu = Security.sanitize(document.getElementById('eaUser').value,50);
-  const nn = Security.sanitize(document.getElementById('eaName').value,80);
-  const np = Security.sanitize(document.getElementById('eaPass').value,100);
-  if (!nu||!nn) { toast('Name and username required.','err'); return; }
-  if (Object.values(_usersCache).find(x=>x.uid!==uid&&x.username===nu)) { toast('Username already taken.','err'); return; }
-  if (np&&np.length<6) { toast('Admin password must be at least 6 characters.','err'); return; }
-  const updates = { name:nn, username:nu }; if(np) updates.password=np;
-  await fbUpd(`users/${uid}`, updates);
-  closeM('mEditAdm'); admSec2='settings';
+  const a   = store.users.find(x => x.uid === uid && x.role === 'admin');
+  if (!a || a.isSuperAdmin) { toast('Cannot edit this account.', 'err'); return; }
+  const nu = Security.sanitize(document.getElementById('eaUser').value, 50);
+  const nn = Security.sanitize(document.getElementById('eaName').value, 80);
+  const np = Security.sanitize(document.getElementById('eaPass').value, 100);
+  if (!nu || !nn) { toast('Name and username required.', 'err'); return; }
+  if (store.users.find(x => x.uid !== uid && x.username === nu)) { toast('Username already taken.', 'err'); return; }
+  if (np && np.length < 6) { toast('Admin password must be at least 6 characters.', 'err'); return; }
+  a.name = nn; a.username = nu;
+  if (np) a.password = np;
+  ss(store);
+  closeM('mEditAdm');
+  admSec2 = 'settings';
+  renderAdm();
   toast('Admin account updated.');
   logAct(`Super Admin updated admin "${Security.esc(nn)}"`, 'b');
-};
+}
 
-window.delAdm = async function(uid) {
-  if (!curUser.isSuperAdmin) { toast('Only the Super Admin can delete admins.','err'); return; }
-  const a = findUser(uid); if (!a) { toast('Admin not found.','err'); return; }
-  if (a.isSuperAdmin) { toast('The Super Admin cannot be deleted.','err'); return; }
-  if (!confirm(`Delete admin "${a.name}" (${a.username})? This cannot be undone.`)) return;
-  await fbDel(`users/${uid}`);
-  admSec2='settings';
+function delAdm(uid) {
+  if (!curUser.isSuperAdmin) { toast('Only the Super Admin can delete admins.', 'err'); return; }
+  const a = store.users.find(x => x.uid === uid && x.role === 'admin');
+  if (!a) { toast('Admin not found.', 'err'); return; }
+  if (a.isSuperAdmin) { toast('The Super Admin account cannot be deleted.', 'err'); return; }
+  if (!confirm(`Delete admin account "${a.name}" (${a.username})? This cannot be undone.`)) return;
+  store.users = store.users.filter(x => x.uid !== uid);
+  ss(store);
+  admSec2 = 'settings';
+  renderAdm();
   toast(`Admin "${Security.esc(a.name)}" deleted.`, 'warn');
   logAct(`Super Admin deleted admin "${Security.esc(a.name)}"`, 'r');
-};
+}
 
-/* ── BULK ACTIONS ── */
-function getSelectedUids() { return Array.from(document.querySelectorAll('.stu-cb:checked')).map(cb=>cb.dataset.uid); }
+/* ═══════════════════════════════════════════════════════
+   BULK SELECTION & ACTIONS
+═══════════════════════════════════════════════════════ */
+function getSelectedUids() {
+  return Array.from(document.querySelectorAll('.stu-cb:checked')).map(cb => cb.dataset.uid);
+}
 
-window.updateBulkBar = function() {
-  const sel=getSelectedUids(), bar=document.getElementById('bulkBar'), cnt=document.getElementById('bulkCnt');
-  if(!bar||!cnt) return;
-  bar.style.display=sel.length>0?'flex':'none';
-  cnt.textContent=`${sel.length} student${sel.length!==1?'s':''} selected`;
-  const all=document.querySelectorAll('.stu-cb'), sa=document.getElementById('selectAll');
-  if(sa) sa.checked=all.length>0&&sel.length===all.length;
-};
+function updateBulkBar() {
+  const sel = getSelectedUids();
+  const bar = document.getElementById('bulkBar');
+  const cnt = document.getElementById('bulkCnt');
+  if (!bar || !cnt) return;
+  bar.style.display = sel.length > 0 ? 'flex' : 'none';
+  cnt.textContent = `${sel.length} student${sel.length !== 1 ? 's' : ''} selected`;
+  const all = document.querySelectorAll('.stu-cb');
+  const sa  = document.getElementById('selectAll');
+  if (sa) sa.checked = all.length > 0 && sel.length === all.length;
+}
 
-window.toggleSelectAll = function(cb) {
-  document.querySelectorAll('.stu-cb').forEach(c=>{ const row=c.closest('tr'); if(!row||row.style.display==='none') return; c.checked=cb.checked; });
+function toggleSelectAll(cb) {
+  document.querySelectorAll('.stu-cb').forEach(c => {
+    const row = c.closest('tr');
+    if (!row || row.style.display === 'none') return;
+    c.checked = cb.checked;
+  });
   updateBulkBar();
-};
+}
 
-window.clearSelection = function() {
-  document.querySelectorAll('.stu-cb').forEach(c=>c.checked=false);
-  const sa=document.getElementById('selectAll'); if(sa) sa.checked=false; updateBulkBar();
-};
+function clearSelection() {
+  document.querySelectorAll('.stu-cb').forEach(c => c.checked = false);
+  const sa = document.getElementById('selectAll');
+  if (sa) sa.checked = false;
+  updateBulkBar();
+}
 
-window.bulkUnlock = async function() {
-  const uids=getSelectedUids(); if(!uids.length) return;
-  if(!confirm(`Unlock all lessons for ${uids.length} selected student(s)?`)) return;
-  await Promise.all(uids.map(async uid=>{
-    const s=findUser(uid); if(!s) return;
-    const prog=s.progress||dp(); prog.unlocked=[0,1,2,3,4];
-    await fbSet(`users/${uid}/progress`, prog);
-  }));
+function bulkUnlock() {
+  const uids = getSelectedUids();
+  if (!uids.length) return;
+  if (!confirm(`Unlock all lessons for ${uids.length} selected student(s)?`)) return;
+  uids.forEach(uid => {
+    const s = findUser(uid);
+    if (!s) return;
+    if (!s.progress) s.progress = dp();
+    s.progress.unlocked = [0,1,2,3,4];
+  });
+  ss(store);
+  renderAdm();
   toast(`Lessons unlocked for ${uids.length} student(s).`);
   logAct(`Admin bulk-unlocked lessons for ${uids.length} student(s)`, 'b');
-};
+}
 
-window.bulkReset = async function() {
-  const uids=getSelectedUids(); if(!uids.length) return;
-  if(!confirm(`Reset ALL progress for ${uids.length} selected student(s)?`)) return;
-  await Promise.all(uids.map(uid=>fbSet(`users/${uid}/progress`, dp())));
+function bulkReset() {
+  const uids = getSelectedUids();
+  if (!uids.length) return;
+  if (!confirm(`Reset ALL progress for ${uids.length} selected student(s)? This cannot be undone.`)) return;
+  uids.forEach(uid => {
+    const s = findUser(uid);
+    if (s) s.progress = dp();
+  });
+  ss(store);
+  renderAdm();
   toast(`Progress reset for ${uids.length} student(s).`, 'warn');
   logAct(`Admin bulk-reset progress for ${uids.length} student(s)`, 'r');
-};
+}
 
-window.bulkDelete = async function() {
-  const uids=getSelectedUids(); if(!uids.length) return;
-  const names=uids.map(uid=>findUser(uid)?.name||uid);
-  if(!confirm(`Permanently delete ${uids.length} student(s)?\n\n${names.join('\n')}\n\nThis cannot be undone.`)) return;
-  await Promise.all(uids.map(uid=>fbDel(`users/${uid}`)));
+function bulkDelete() {
+  const uids = getSelectedUids();
+  if (!uids.length) return;
+  const names = uids.map(uid => findUser(uid)?.name || uid);
+  if (!confirm(`Permanently delete ${uids.length} student account(s)?\n\n${names.join('\n')}\n\nThis cannot be undone.`)) return;
+  store.users = store.users.filter(s => !uids.includes(s.uid));
+  ss(store);
+  renderAdm();
   toast(`${uids.length} student(s) deleted.`, 'warn');
   logAct(`Admin bulk-deleted ${uids.length} student(s)`, 'r');
-};
+}
 
-window.bulkToggleActive = async function() {
-  const uids=getSelectedUids(); if(!uids.length) return;
-  const activeCount=uids.filter(uid=>{ const s=findUser(uid); return s&&s.active!==false; }).length;
-  const makeActive=activeCount<=Math.floor(uids.length/2);
-  const action=makeActive?'activate':'deactivate';
-  if(!confirm(`${action.charAt(0).toUpperCase()+action.slice(1)} ${uids.length} selected student(s)?`)) return;
-  await Promise.all(uids.map(uid=>fbUpd(`users/${uid}`, { active:makeActive })));
-  toast(`${uids.length} student(s) ${action}d.`);
-  logAct(`Admin ${action}d ${uids.length} student(s)`, makeActive?'g':'');
-};
-
-window.bulkExport = function() {
-  const uids=getSelectedUids(); if(!uids.length) return;
-  const selected=Object.values(_usersCache).filter(s=>uids.includes(s.uid)&&s.role==='student');
-  const rows=[['Name','Username','Status','Lessons Done','Practise Score','Passed','Last Login']];
-  selected.forEach(s=>{
-    const p=s.progress||{};
-    const comp=p.completed||[];
-    rows.push([s.name,s.username,s.active!==false?'Active':'Inactive',
-      comp.filter(x=>x<4).length+'/4',
-      p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'0%',
-      p.practisePassed?'Yes':'No',
-      p.lastAccess?new Date(p.lastAccess).toLocaleDateString('en-GB'):'Never']);
+function bulkToggleActive() {
+  const uids = getSelectedUids();
+  if (!uids.length) return;
+  const activeCount = uids.filter(uid => {
+    const s = findUser(uid);
+    return s && s.active !== false;
+  }).length;
+  const makeActive = activeCount <= Math.floor(uids.length / 2);
+  const action = makeActive ? 'activate' : 'deactivate';
+  if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} ${uids.length} selected student(s)?`)) return;
+  uids.forEach(uid => {
+    const s = findUser(uid);
+    if (s) s.active = makeActive;
   });
-  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=`hp_students_export_${new Date().toISOString().slice(0,10)}.csv`;
+  ss(store);
+  renderAdm();
+  toast(`${uids.length} student(s) ${action}d.`);
+  logAct(`Admin ${action}d ${uids.length} student(s)`, makeActive ? 'g' : '');
+}
+
+function bulkExport() {
+  const uids = getSelectedUids();
+  if (!uids.length) return;
+  const selected = store.users.filter(s => uids.includes(s.uid) && s.role === 'student');
+  const rows = [['Name','Username','Status','Lessons Done','Practise Score','Passed','Last Login']];
+  selected.forEach(s => {
+    const p  = s.progress || dp();
+    const ld = p.completed.filter(x => x < 4).length;
+    rows.push([
+      s.name, s.username,
+      s.active !== false ? 'Active' : 'Inactive',
+      ld + '/4',
+      p.practiseScore !== null ? Math.round(p.practiseScore * 100) + '%' : '0%',
+      p.practisePassed ? 'Yes' : 'No',
+      p.lastAccess ? new Date(p.lastAccess).toLocaleDateString('en-GB') : 'Never'
+    ]);
+  });
+  const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `hp_students_export_${new Date().toISOString().slice(0,10)}.csv`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   toast(`Exported ${selected.length} student(s) to CSV.`);
-};
+}
 
-window.openBulkPass = function() {
-  if(!getSelectedUids().length) return;
-  document.getElementById('bulkNewPass').value='';
-  document.getElementById('bulkNewPass2').value='';
+function openBulkPass() {
+  if (!getSelectedUids().length) return;
+  document.getElementById('bulkNewPass').value  = '';
+  document.getElementById('bulkNewPass2').value = '';
   openM('mBulkPass');
-};
+}
 
-window.doBulkPassReset = async function() {
-  const uids=getSelectedUids();
-  const p1=Security.sanitize(document.getElementById('bulkNewPass').value,100);
-  const p2=Security.sanitize(document.getElementById('bulkNewPass2').value,100);
-  if(!p1){ toast('Password cannot be empty.','err'); return; }
-  if(p1.length<4){ toast('Password must be at least 4 characters.','err'); return; }
-  if(p1!==p2){ toast('Passwords do not match.','err'); return; }
-  if(!confirm(`Reset password for ${uids.length} selected student(s)?`)) return;
-  await Promise.all(uids.map(uid=>fbUpd(`users/${uid}`, { password:p1 })));
+function doBulkPassReset() {
+  const uids = getSelectedUids();
+  const p1 = Security.sanitize(document.getElementById('bulkNewPass').value, 100);
+  const p2 = Security.sanitize(document.getElementById('bulkNewPass2').value, 100);
+  if (!p1) { toast('Password cannot be empty.', 'err'); return; }
+  if (p1.length < 4) { toast('Password must be at least 4 characters.', 'err'); return; }
+  if (p1 !== p2) { toast('Passwords do not match.', 'err'); return; }
+  if (!confirm(`Reset password for ${uids.length} selected student(s)?`)) return;
+  uids.forEach(uid => {
+    const s = findUser(uid);
+    if (s) s.password = p1;
+  });
+  ss(store);
   closeM('mBulkPass');
+  renderAdm();
   toast(`Password reset for ${uids.length} student(s).`);
   logAct(`Admin bulk-reset passwords for ${uids.length} student(s)`, 'b');
-};
-
-window.unlkAllStus = async function() {
-  if(!confirm('Unlock all 4 lessons + practise for ALL students?')) return;
-  const stus=getStudents();
-  await Promise.all(stus.map(s=>{ const prog=s.progress||dp(); prog.unlocked=[0,1,2,3,4]; return fbSet(`users/${s.uid}/progress`,prog); }));
-  toast('All lessons unlocked for all students.');
-  logAct('Admin unlocked all lessons for all students', 'b');
-};
-
-window.rstAllProg = async function() {
-  if(!confirm('RESET all student progress? This cannot be undone!')) return;
-  const stus=getStudents();
-  await Promise.all(stus.map(s=>fbSet(`users/${s.uid}/progress`, dp())));
-  toast('All student progress has been reset.', 'warn');
-  logAct('Admin reset all student progress', 'r');
-};
-
-window.expCSV = function() {
-  const rows=[['Name','Username','L1 Done','L2 Done','L3 Done','L4 Done','Practise Score','Passed']];
-  getStudents().forEach(s=>{
-    const p=s.progress||{}; const comp=p.completed||[];
-    rows.push([s.name,s.username,...[0,1,2,3].map(i=>comp.includes(i)?'Yes':'No'),
-      p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'0%',p.practisePassed?'Yes':'No']);
-  });
-  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='hp_student_progress.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  toast('CSV exported!');
-};
+}
 
 /* ═══════════════════════════════════════════════════════
    CSV IMPORT
 ═══════════════════════════════════════════════════════ */
-let _csvParsed=[];
-window.dlCSVTemplate = function() {
-  const csv='name,username,password\r\nAndrew Nabirye,andrew.n,password123\r\nRuth Kisembo,ruth.k,password456';
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download='hp_students_template.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+let _csvParsed = [];
+
+function dlCSVTemplate() {
+  const csv = 'name,username,password\r\nAndrew Nabirye,andrew.n,password123\r\nRuth Kisembo,ruth.k,password456\r\nPaul Namara,paul.n,password789';
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'hp_students_template.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
   toast('Template downloaded!');
-};
-window.resetCSVModal = function() {
-  _csvParsed=[];
-  const fi=document.getElementById('csvFileInput'); if(fi) fi.value='';
-  const fn=document.getElementById('csvFileName');  if(fn) fn.textContent='No file selected';
-  const prev=document.getElementById('csvPreview'); if(prev) prev.style.display='none';
-  const btn3=document.getElementById('csvImportBtn'); if(btn3) btn3.style.display='none';
-};
-window.handleCSVFile = function(input) {
-  const file=input.files[0]; if(!file) return;
-  document.getElementById('csvFileName').textContent=Security.esc(file.name);
-  const reader=new FileReader();
-  reader.onload=e=>parseAndPreviewCSV(e.target.result);
+}
+
+function resetCSVModal() {
+  _csvParsed = [];
+  const fi = document.getElementById('csvFileInput'); if (fi) fi.value = '';
+  const fn = document.getElementById('csvFileName');  if (fn) fn.textContent = 'No file selected';
+  const prev = document.getElementById('csvPreview'); if (prev) prev.style.display = 'none';
+  const btn  = document.getElementById('csvImportBtn'); if (btn) btn.style.display = 'none';
+}
+
+function handleCSVFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('csvFileName').textContent = Security.esc(file.name);
+  const reader = new FileReader();
+  reader.onload = e => parseAndPreviewCSV(e.target.result);
   reader.readAsText(file);
-};
+}
+
 function parseCSVLine(line) {
-  const result=[]; let cur='',inQ=false;
-  for(let i=0;i<line.length;i++){
-    const ch=line[i];
-    if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else inQ=!inQ;}
-    else if(ch===','&&!inQ){result.push(cur);cur='';}
-    else cur+=ch;
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+      else inQ = !inQ;
+    } else if (ch === ',' && !inQ) {
+      result.push(cur); cur = '';
+    } else { cur += ch; }
   }
-  result.push(cur); return result;
+  result.push(cur);
+  return result;
 }
+
+function showCSVError(msg) {
+  const errEl = document.getElementById('csvErrors');
+  if (errEl) { errEl.innerHTML = '❌ ' + msg; errEl.style.display = 'block'; }
+  const titleEl = document.getElementById('csvPreviewTitle');
+  if (titleEl) titleEl.textContent = '';
+  const tw = document.getElementById('csvTableWrap');
+  if (tw) tw.innerHTML = '';
+}
+
 function parseAndPreviewCSV(raw) {
-  _csvParsed=[];
-  const preview=document.getElementById('csvPreview'), errEl2=document.getElementById('csvErrors');
-  const warnEl=document.getElementById('csvWarnings'), tableWrap=document.getElementById('csvTableWrap');
-  const titleEl=document.getElementById('csvPreviewTitle'), importBtn2=document.getElementById('csvImportBtn');
-  if(preview) preview.style.display='block';
-  if(errEl2) errEl2.style.display='none';
-  if(warnEl) warnEl.style.display='none';
-  if(importBtn2) importBtn2.style.display='none';
-  const lines=raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim().split('\n');
-  if(lines.length<2){if(errEl2){errEl2.innerHTML='❌ CSV is empty or has no data rows.';errEl2.style.display='block';}return;}
-  const header=parseCSVLine(lines[0]).map(h=>h.trim().toLowerCase().replace(/^"|"$/g,''));
-  const REQUIRED=['name','username','password'];
-  const missing=REQUIRED.filter(r=>!header.includes(r));
-  if(missing.length){if(errEl2){errEl2.innerHTML=`❌ Missing columns: <strong>${missing.join(', ')}</strong>`;errEl2.style.display='block';}return;}
-  const idx={name:header.indexOf('name'),username:header.indexOf('username'),password:header.indexOf('password')};
-  const errors=[],warnings=[],valid=[];
-  for(let i=1;i<lines.length;i++){
-    const line=lines[i].trim(); if(!line) continue;
-    const cols=parseCSVLine(line);
-    const rn=(cols[idx.name]||'').trim(), ru=(cols[idx.username]||'').trim().toLowerCase(), rp=(cols[idx.password]||'').trim();
-    const rowErr=[];
-    if(!rn) rowErr.push('Name is empty');
-    if(!ru) rowErr.push('Username is empty');
-    else if(!/^[a-z0-9._-]+$/.test(ru)) rowErr.push(`Username "${Security.esc(ru)}" has invalid characters`);
-    if(!rp) rowErr.push('Password is empty');
-    else if(rp.length<4) rowErr.push('Password too short (min 4 chars)');
-    if(rowErr.length){errors.push(`Row ${i}: ${rowErr.join('; ')}`);continue;}
-    if(allUsernames().includes(ru)){warnings.push(`Row ${i}: "${Security.esc(ru)}" already exists — skipped`);continue;}
-    if(valid.find(v=>v.username===ru)){warnings.push(`Row ${i}: "${Security.esc(ru)}" duplicated — skipped`);continue;}
-    valid.push({name:rn,username:ru,password:rp});
+  _csvParsed = [];
+  const preview    = document.getElementById('csvPreview');
+  const errEl      = document.getElementById('csvErrors');
+  const warnEl     = document.getElementById('csvWarnings');
+  const tableWrap  = document.getElementById('csvTableWrap');
+  const titleEl    = document.getElementById('csvPreviewTitle');
+  const importBtn  = document.getElementById('csvImportBtn');
+  if (preview)   preview.style.display   = 'block';
+  if (errEl)     errEl.style.display     = 'none';
+  if (warnEl)    warnEl.style.display    = 'none';
+  if (importBtn) importBtn.style.display = 'none';
+
+  const lines = raw.replace(/\r\n/g,'\n').replace(/\r/g,'\n').trim().split('\n');
+  if (lines.length < 2) { showCSVError('The CSV file is empty or has no data rows.'); return; }
+
+  const REQUIRED = ['name','username','password'];
+
+  const header = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/^"|"$/g,''));
+  const missing = REQUIRED.filter(r => !header.includes(r));
+  if (missing.length) {
+    showCSVError(`Missing required columns: <strong>${missing.join(', ')}</strong><br>Required: name, username, password, class`);
+    return;
   }
-  _csvParsed=valid;
-  if(errEl2&&errors.length){errEl2.innerHTML='<strong>❌ Errors:</strong><br>'+errors.join('<br>');errEl2.style.display='block';}
-  if(warnEl&&warnings.length){warnEl.innerHTML='<strong>⚠ Warnings:</strong><br>'+warnings.join('<br>');warnEl.style.display='block';}
-  if(!valid.length){if(titleEl) titleEl.textContent='❌ No valid rows. Fix errors and try again.';if(tableWrap) tableWrap.innerHTML='';return;}
-  if(titleEl) titleEl.textContent=`✅ ${valid.length} student(s) ready to import`;
-  let tbl='<table class="dt"><thead><tr><th>#</th><th>Name</th><th>Username</th></tr></thead><tbody>';
-  valid.forEach((v,i)=>{ tbl+=`<tr><td>${i+1}</td><td>${Security.esc(v.name)}</td><td><span style="font-family:var(--mono);font-size:11px">${Security.esc(v.username)}</span></td></tr>`; });
-  tbl+='</tbody></table>';
-  if(tableWrap) tableWrap.innerHTML=tbl;
-  if(importBtn2) importBtn2.style.display='block';
+  const idx = { name: header.indexOf('name'), username: header.indexOf('username'), password: header.indexOf('password') };
+  const errors = [], warnings = [], valid = [];
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    const cols = parseCSVLine(line);
+    const rn   = (cols[idx.name]     || '').trim();
+    const ru   = (cols[idx.username] || '').trim().toLowerCase();
+    const rp   = (cols[idx.password] || '').trim();
+    const rowErr = [];
+    if (!rn) rowErr.push('Name is empty');
+    if (!ru) rowErr.push('Username is empty');
+    else if (!/^[a-z0-9._-]+$/.test(ru)) rowErr.push(`Username "${Security.esc(ru)}" has invalid characters`);
+    if (!rp) rowErr.push('Password is empty');
+    else if (rp.length < 4) rowErr.push('Password too short (min 4 chars)');
+    if (rowErr.length) { errors.push(`Row ${i}: ${rowErr.join('; ')}`); continue; }
+    if (allUsernames().includes(ru)) {
+      warnings.push(`Row ${i}: username "<strong>${Security.esc(ru)}</strong>" already exists — skipped`); continue;
+    }
+    if (valid.find(v => v.username === ru)) {
+      warnings.push(`Row ${i}: username "<strong>${Security.esc(ru)}</strong>" duplicated in CSV — skipped`); continue;
+    }
+    valid.push({ name: rn, username: ru, password: rp });
+  }
+
+  _csvParsed = valid;
+  if (errEl && errors.length) {
+    errEl.innerHTML = '<strong>❌ Errors (rows not imported):</strong><br>' + errors.join('<br>');
+    errEl.style.display = 'block';
+  }
+  if (warnEl && warnings.length) {
+    warnEl.innerHTML = '<strong>⚠ Warnings (rows skipped):</strong><br>' + warnings.join('<br>');
+    warnEl.style.display = 'block';
+  }
+  if (!valid.length) {
+    if (titleEl) titleEl.textContent = '❌ No valid rows found. Fix errors and try again.';
+    if (tableWrap) tableWrap.innerHTML = '';
+    return;
+  }
+  if (titleEl) titleEl.textContent = `✅ ${valid.length} student(s) ready to import${errors.length || warnings.length ? ` (${errors.length + warnings.length} row(s) skipped)` : ''}`;
+  let tbl = '<table class="dt"><thead><tr><th>#</th><th>Name</th><th>Username</th></tr></thead><tbody>';
+  valid.forEach((v, i) => {
+    tbl += `<tr><td>${i+1}</td><td>${Security.esc(v.name)}</td><td><span style="font-family:var(--mono);font-size:11px">${Security.esc(v.username)}</span></td></tr>`;
+  });
+  tbl += '</tbody></table>';
+  if (tableWrap) tableWrap.innerHTML = tbl;
+  if (importBtn) importBtn.style.display = 'block';
 }
-window.importCSV = async function() {
-  if(!_csvParsed.length){toast('No valid students to import.','err');return;}
-  if(!confirm(`Import ${_csvParsed.length} new student account(s)?`)) return;
-  await Promise.all(_csvParsed.map(row=>{
-    const uid='s'+Date.now()+Math.random().toString(36).slice(2,6);
-    return fbSet(`users/${uid}`,{uid,role:'student',name:row.name,username:row.username,password:row.password,active:true,progress:dp()});
-  }));
-  const count=_csvParsed.length;
-  closeM('mCSVImport'); resetCSVModal();
-  admSec2='students';
-  toast(`✅ ${count} student(s) imported!`);
+
+function importCSV() {
+  if (!_csvParsed.length) { toast('No valid students to import.', 'err'); return; }
+  if (!confirm(`Import ${_csvParsed.length} new student account(s)?`)) return;
+  _csvParsed.forEach(row => {
+    store.users.push({
+      uid: 's' + Date.now() + Math.random().toString(36).slice(2,6),
+      role: 'student', name: row.name, username: row.username, password: row.password,
+      active: true, progress: dp()
+    });
+  });
+  const count = _csvParsed.length;
+  ss(store);
+  closeM('mCSVImport');
+  resetCSVModal();
+  admSec2 = 'students';
+  renderAdm();
+  toast(`✅ ${count} student(s) imported successfully!`);
   logAct(`Admin imported ${count} student(s) via CSV`, 'g');
-};
+}
 
 /* ═══════════════════════════════════════════════════════
    MODAL HELPERS
 ═══════════════════════════════════════════════════════ */
-window.openM  = function(id){ const el=document.getElementById(id); if(el) el.classList.add('open'); };
-window.closeM = function(id){ const el=document.getElementById(id); if(el) el.classList.remove('open'); };
+function openM(id)  { const el = document.getElementById(id); if (el) el.classList.add('open'); }
+function closeM(id) { const el = document.getElementById(id); if (el) el.classList.remove('open'); }
 
-document.querySelectorAll('.overlay').forEach(m=>{ m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('open'); }); });
-
-/* Prevent admin page access if not admin */
-document.addEventListener('visibilitychange',()=>{
-  if(!document.hidden){
-    const adminActive=document.getElementById('pg-admin').classList.contains('active');
-    if(adminActive&&(!curUser||!curUser.isAdmin)) doLogout();
-  }
+document.querySelectorAll('.overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
 });
 
-/* Keyboard listeners for login */
-document.getElementById('loginP').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
-document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('loginP').focus(); });
-
-/* ═══════════════════════════════════════════════════════
-   BOOTSTRAP — seed data then apply theme
-═══════════════════════════════════════════════════════ */
-(async () => {
-  if (!_fbReady) {
-    toast('⚠ Cannot connect to Firebase. Check your internet connection.', 'err');
-    // Show a warning on the login card
-    const card = document.querySelector('.login-card');
-    if (card) {
-      const warn = document.createElement('div');
-      warn.style.cssText = 'background:rgba(245,85,90,.08);border:1.5px solid rgba(245,85,90,.25);border-radius:5px;padding:9px 12px;font-size:12px;color:var(--red);margin-bottom:12px;text-align:center';
-      warn.textContent = '⚠ No database connection. Please check your internet and reload.';
-      card.insertBefore(warn, card.firstChild);
-    }
-    return;
+/* Prevent admin page access if not admin */
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) {
+    const adminActive = document.getElementById('pg-admin').classList.contains('active');
+    if (adminActive && (!curUser || !curUser.isAdmin)) doLogout();
   }
-  try {
-    await seedIfEmpty();
-    // Apply saved theme
-    const themeSnap = await fbGet('theme');
-    applyTheme(themeSnap.exists() ? themeSnap.val() : 'dark');
-  } catch(e) {
-    console.error('[HPSchool] Bootstrap error:', e);
-    toast('Error loading data. Please reload the page.', 'err');
-  }
-})();
-
+});
 </script>
 
 </body>
