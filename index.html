@@ -852,7 +852,34 @@ const DEFAULT_USERS = [
 
 async function seedIfEmpty() {
   const snap = await fbGet('users');
-  if (snap.exists()) return; // already seeded
+  if (snap.exists()) {
+    // DB has data — repair any partial/broken records from past race conditions
+    const existing = snap.val();
+    const repairs = {};
+    DEFAULT_USERS.forEach(u => {
+      const rec = existing[u.uid];
+      if (!rec || !rec.role || !rec.username) {
+        // Missing or partial record — rebuild it, preserving any existing progress
+        const entry = { ...u };
+        if (u.role === 'student') {
+          const existingProgress = rec && rec.progress;
+          entry.progress = existingProgress || dp();
+          // Ensure progress is valid
+          if (!Array.isArray(entry.progress.unlocked) || !entry.progress.unlocked.length) entry.progress.unlocked = [0];
+          if (!Array.isArray(entry.progress.completed)) entry.progress.completed = [];
+          if (!entry.progress.exResults) entry.progress.exResults = {};
+        }
+        repairs[u.uid] = entry;
+        console.log('[HPSchool] Repairing record for', u.uid, u.username);
+      }
+    });
+    if (Object.keys(repairs).length) {
+      await fbUpd('users', repairs);
+      console.log('[HPSchool] Repaired', Object.keys(repairs).length, 'record(s)');
+    }
+    return;
+  }
+  // Completely empty — full seed
   console.log('[HPSchool] Seeding initial data…');
   const updates = {};
   DEFAULT_USERS.forEach(u => {
@@ -861,7 +888,6 @@ async function seedIfEmpty() {
     updates[u.uid] = entry;
   });
   await fbSet('users', updates);
-  // Seed theme preference
   await fbSet('theme', 'dark');
   console.log('[HPSchool] Seeding complete.');
 }
@@ -969,6 +995,7 @@ window.doLogin = async function() {
       logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
       showPg('pg-admin');
       startAdminLiveSync(); // fires fbSub immediately which calls renderAdm()
+      startActLogSync();    // live activity log listener
       if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
       return;
     }
@@ -986,12 +1013,30 @@ window.doLogin = async function() {
       Security.createSession();
       curUser = { uid: matchedUser.uid, name: matchedUser.name, username: matchedUser.username, isAdmin:false };
       Security.savePersistedUser(curUser);
-      // Update lastAccess in Firebase (best-effort)
-      if (!matchedUser.progress) matchedUser.progress = dp();
+      if (_fbReady) {
+        try {
+          // Ensure a full, valid record exists in Firebase before writing anything
+          const existSnap = await fbGet(`users/${matchedUser.uid}`);
+          const existRec = existSnap.exists() ? existSnap.val() : null;
+          if (!existRec || !existRec.role || !existRec.username) {
+            // Missing or partial — write the full record
+            const fullRec = { ...matchedUser };
+            if (!fullRec.progress || !Array.isArray(fullRec.progress.unlocked)) fullRec.progress = dp();
+            await fbSet(`users/${matchedUser.uid}`, fullRec);
+            matchedUser = { ...fullRec }; // use the repaired version
+            console.log('[HPSchool] Wrote full record for', matchedUser.uid);
+          } else {
+            // Record exists — use it (has real progress data)
+            matchedUser = { uid: matchedUser.uid, ...existRec };
+          }
+        } catch(e) { console.warn('[HPSchool] Record check failed:', e.message); }
+      }
+      // Update lastAccess
+      if (!matchedUser.progress || !Array.isArray(matchedUser.progress.unlocked)) matchedUser.progress = dp();
       matchedUser.progress.lastAccess = new Date().toISOString();
       try {
         await fbUpd(`users/${matchedUser.uid}/progress`, { lastAccess: matchedUser.progress.lastAccess });
-      } catch(e) { /* non-fatal — offline or DB not seeded yet */ }
+      } catch(e) { console.warn('[HPSchool] lastAccess write failed:', e.message); }
       logAct(`Student "${Security.esc(matchedUser.name)}" logged in`, 'g');
       showPg('pg-app');
       startStudentLiveSync(matchedUser.uid, matchedUser);
@@ -1057,6 +1102,8 @@ window.doLogout = function() {
   // Unsubscribe live listeners
   if (_adminUnsubscribe)  { try{_adminUnsubscribe();}catch(e){} _adminUnsubscribe=null; }
   if (_studentUnsubscribe){ try{_studentUnsubscribe();}catch(e){} _studentUnsubscribe=null; }
+  if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe=null; }
+  _actLogCache = [];
   _usersCache = {};
   _passVisible = false;
   const inp = document.getElementById('loginP'); if(inp) inp.type = 'password';
@@ -1139,6 +1186,12 @@ function getProg() {
   const s = getStu();
   if (!s) return dp();
   if (!s.progress) s.progress = dp();
+  // Ensure unlocked always has at least lesson 0 — guards against corrupt/partial records
+  if (!Array.isArray(s.progress.unlocked) || s.progress.unlocked.length === 0) {
+    s.progress.unlocked = [0];
+  }
+  if (!Array.isArray(s.progress.completed)) s.progress.completed = [];
+  if (!s.progress.exResults || typeof s.progress.exResults !== 'object') s.progress.exResults = {};
   return s.progress;
 }
 
@@ -1163,8 +1216,47 @@ function logAct(msg, color='') {
   try { fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() }).catch(()=>{}); } catch(e) {}
 }
 
-// Read actLog once for display (admin panel only)
+// ── Live actLog listener ─────────────────────────────
+let _actLogUnsubscribe = null;
+let _actLogCache = [];
+
+function startActLogSync() {
+  if (!_fbReady) return;
+  if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} }
+  try {
+    _actLogUnsubscribe = fbSub('actLog', snap => {
+      _actLogCache = [];
+      if (snap.exists()) {
+        snap.forEach(child => _actLogCache.push(child.val()));
+        _actLogCache.reverse();
+        if (_actLogCache.length > 100) _actLogCache = _actLogCache.slice(0, 100);
+      }
+      const adminActive = document.getElementById('pg-admin').classList.contains('active');
+      if (adminActive && curUser && curUser.isAdmin) {
+        if (admSec2 === 'overview') _refreshOverviewLogs();
+        else if (admSec2 === 'logs') _refreshLogsPanel();
+      }
+    });
+  } catch(e) { console.warn('[HPSchool] actLog sync unavailable:', e.message); }
+}
+
+function _refreshOverviewLogs() {
+  const el = document.getElementById('actLogBody'); if (!el) return;
+  el.innerHTML = _actLogCache.slice(0,15).length
+    ? _actLogCache.slice(0,15).map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
+    : '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>';
+}
+
+function _refreshLogsPanel() {
+  const el = document.getElementById('admLogList'); if (!el) return;
+  el.innerHTML = _actLogCache.length
+    ? `<span style="font-size:11px;color:var(--txt3);display:block;margin-bottom:8px">${_actLogCache.length} entries</span>`
+      + _actLogCache.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
+    : '<div style="color:var(--txt3);font-size:12.5px">No activity logged yet.</div>';
+}
+
 async function getActLog(limit=100) {
+  if (_actLogCache.length) return _actLogCache.slice(0, limit);
   try {
     const timeout = new Promise(resolve => setTimeout(() => resolve(null), 5000));
     const snap = await Promise.race([fbGet('actLog'), timeout]);
@@ -1178,6 +1270,7 @@ async function getActLog(limit=100) {
 window.clrLogs = async function() {
   if (!confirm('Clear all activity logs? This cannot be undone.')) return;
   await fbDel('actLog');
+  _actLogCache = [];
   toast('Logs cleared.'); renderAdm();
 }
 
@@ -2660,14 +2753,7 @@ function admOverview(body) {
       <div id="actLogBody" data-token="${token}" style="padding:14px 16px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div>
     </div>`;
 
-  getActLog(15).then(logs => {
-    const el = document.getElementById('actLogBody');
-    // Ignore if the DOM has been replaced by a newer render
-    if (!el || el.dataset.token != token) return;
-    el.innerHTML = logs.length
-      ? logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
-      : '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>';
-  });
+  setTimeout(() => _refreshOverviewLogs(), 0);
 }
 
 function admStudents(body) {
@@ -2769,14 +2855,9 @@ function admProgress(body) {
     </div>`;
 }
 
-async function admLogs(body) {
+function admLogs(body) {
   body.innerHTML = `<div class="scard"><div class="scard-ttl">📋 Activity Log <button class="btn btn-xs btn-red" style="margin-left:auto" onclick="clrLogs()">Clear All</button></div><div id="admLogList" style="min-height:40px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div></div>`;
-  const logs = await getActLog(100);
-  const el = document.getElementById('admLogList'); if (!el) return;
-  el.innerHTML = logs.length
-    ? `<span style="font-size:11px;color:var(--txt3);display:block;margin-bottom:8px">${logs.length} entries</span>`
-      + logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
-    : '<div style="color:var(--txt3);font-size:12.5px">No activity logged yet.</div>';
+  _refreshLogsPanel();
 }
 
 function admSettings(body) {
@@ -3282,6 +3363,7 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
     if (curUser.isAdmin) {
       showPg('pg-admin');
       startAdminLiveSync();  // fires fbSub immediately which calls renderAdm()
+    startActLogSync();     // live activity log listener
     } else {
       // Use saved data to start the app instantly, then Firebase live sync
       // will update the cache and re-render once it arrives.
