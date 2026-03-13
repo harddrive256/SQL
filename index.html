@@ -2168,7 +2168,7 @@ Use it when you want to know <strong>what values exist</strong> — not how many
       { q:"[Q7] Select ALL columns from students where <code>gender = 'Male'</code>.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const ci=r[0].columns.indexOf('gender'); if(ci>=0&&r[0].values.every(row=>row[ci]==='Male')&&r[0].values.length>0) return{ok:true}; return{ok:false,m:`All rows must have gender='Male'. Got ${r[0].values.length} rows.`}; } },
       { q:"[Q8] Select <code>first_name</code>, <code>last_name</code>, and <code>house</code> from students where <code>class = 'P1'</code>.", s:'',
-        v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; const ci=c.indexOf('class'); if(c.includes('first_name')&&c.includes('last_name')&&c.includes('house')&&ci>=0&&r[0].values.every(row=>row[ci]==='P1')&&r[0].values.length>0) return{ok:true}; return{ok:false,m:`Expected first_name, last_name, house with class='P1'. Got: ${c.join(', ')}`}; } },
+        v:r=>{ if(!r||!r.length) return{ok:false,m:'No results. Check: SELECT first_name, last_name, house FROM students WHERE class = \'P1\';'}; const c=r[0].columns; if(!c.includes('first_name')||!c.includes('last_name')||!c.includes('house')) return{ok:false,m:`Missing a column. Need: first_name, last_name, house. Got: ${c.join(', ')}`}; if(c.length>3) return{ok:false,m:`Too many columns. Only select first_name, last_name, house. Got: ${c.join(', ')}`}; if(r[0].values.length===0) return{ok:false,m:"No rows returned. Make sure WHERE class = 'P1' is correct."}; return{ok:true}; } },
       { q:'[Q9] Use <code>SELECT DISTINCT</code> to list all unique <code>house</code> values from students.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; if(r[0].values.length===4&&r[0].columns.includes('house')) return{ok:true}; return{ok:false,m:`Expected 4 unique houses. Got ${r[0].values.length}.`}; } },
       { q:'[Q10] Use <code>SELECT DISTINCT</code> to list all unique <code>class</code> values from the students table.', s:'',
@@ -2458,24 +2458,10 @@ window.submitPrac = function() {
   } else if (!prog.practisePassed) {
     toast(`Score: ${Math.round(prog.practiseScore*100)}% — need 100% to pass`, 'warn');
   }
-  // Save what the student typed BEFORE re-rendering so we can restore wrong answers
-  const savedAnswers = {};
-  L.exercises.forEach((_,i) => {
-    const ta = document.getElementById(`exta-4-${i}`);
-    if (ta && ta.value.trim()) savedAnswers[i] = ta.value;
-  });
   saveProg(); updateNavBtns();
   renderPracPage(document.getElementById('lscroll'));
   attachExTAs(4, L.exercises.length);
   refreshExBadges(L, 4);
-  // Restore typed answers — keep correct ones as-is, restore wrong ones with what student typed
-  L.exercises.forEach((_,i) => {
-    const wasCorrect = prog.exResults[`4_${i}`] === true;
-    if (!wasCorrect && savedAnswers[i]) {
-      const ta = document.getElementById(`exta-4-${i}`);
-      if (ta) ta.value = savedAnswers[i];
-    }
-  });
 };
 
 /* ═══════════════════════════════════════════════════════
