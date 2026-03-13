@@ -812,7 +812,6 @@ function dp() {
   return { unlocked:[0], completed:[], exResults:{}, practiseScore:null, practisePassed:false, lastAccess:null };
 }
 
-// Firebase stores JS arrays as objects {0:0, 1:1} — convert back to real arrays
 function normalizeProgress(prog) {
   if (!prog) return dp();
   if (prog.unlocked && !Array.isArray(prog.unlocked))
@@ -875,13 +874,9 @@ async function seedIfEmpty() {
         if (u.role === 'student')
           entry.progress = rec && rec.progress ? normalizeProgress(rec.progress) : dp();
         repairs[u.uid] = entry;
-        console.log('[HPSchool] Repairing:', u.uid, u.username);
       }
     });
-    if (Object.keys(repairs).length) {
-      await fbUpd('users', repairs);
-      console.log('[HPSchool] Repaired', Object.keys(repairs).length, 'record(s)');
-    }
+    if (Object.keys(repairs).length) await fbUpd('users', repairs);
     return;
   }
   console.log('[HPSchool] Seeding…');
@@ -1204,28 +1199,36 @@ function logAct(msg, color='') {
   } catch(e) { console.error('[HPSchool] logAct error:', e); }
 }
 
-// ── Live actLog listener ─────────────────────────────
+// ── Live actLog using onChildAdded ───────────────────
+// onChildAdded fires once per existing entry on connect,
+// then again for every new entry — perfect for a push-list
 let _actLogUnsubscribe = null;
 let _actLogCache = [];
 
 function startActLogSync() {
   if (!_fbReady) return;
-  if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} }
-  try {
-    _actLogUnsubscribe = fbSub('actLog', snap => {
-      _actLogCache = [];
-      if (snap.exists()) {
-        snap.forEach(child => _actLogCache.push(child.val()));
-        _actLogCache.reverse();
-        if (_actLogCache.length > 100) _actLogCache = _actLogCache.slice(0,100);
-      }
-      const adminActive = document.getElementById('pg-admin').classList.contains('active');
-      if (adminActive && curUser && curUser.isAdmin) {
-        if (admSec2 === 'overview') _refreshOverviewLogs();
-        else if (admSec2 === 'logs') _refreshLogsPanel();
-      }
-    });
-  } catch(e) { console.warn('[HPSchool] actLog sync unavailable:', e.message); }
+  // Clean up any existing listener
+  if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe = null; }
+  _actLogCache = [];
+
+  const ref = fbRef('actLog');
+
+  // onChildAdded: fires for each existing child, then for each new one
+  const handler = ref.on('child_added', snap => {
+    const entry = snap.val();
+    if (!entry) return;
+    _actLogCache.unshift(entry); // newest first
+    if (_actLogCache.length > 100) _actLogCache.pop();
+    // Refresh the admin UI if it's open
+    const adminActive = document.getElementById('pg-admin').classList.contains('active');
+    if (adminActive && curUser && curUser.isAdmin) {
+      if (admSec2 === 'overview') _refreshOverviewLogs();
+      else if (admSec2 === 'logs') _refreshLogsPanel();
+    }
+  }, e => console.error('[HPSchool] actLog listener error:', e));
+
+  _actLogUnsubscribe = () => ref.off('child_added', handler);
+  console.log('[HPSchool] actLog live listener started');
 }
 
 function _refreshOverviewLogs() {
@@ -1244,15 +1247,7 @@ function _refreshLogsPanel() {
 }
 
 async function getActLog(limit=100) {
-  if (_actLogCache.length) return _actLogCache.slice(0, limit);
-  try {
-    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 5000));
-    const snap = await Promise.race([fbGet('actLog'), timeout]);
-    if (!snap || !snap.exists()) return [];
-    const entries = [];
-    snap.forEach(child => entries.push(child.val()));
-    return entries.reverse().slice(0, limit);
-  } catch(e) { return []; }
+  return _actLogCache.slice(0, limit);
 }
 
 window.clrLogs = async function() {
