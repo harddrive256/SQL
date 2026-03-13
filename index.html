@@ -812,18 +812,6 @@ function dp() {
   return { unlocked:[0], completed:[], exResults:{}, practiseScore:null, practisePassed:false, lastAccess:null };
 }
 
-function normalizeProgress(prog) {
-  if (!prog) return dp();
-  if (prog.unlocked && !Array.isArray(prog.unlocked))
-    prog.unlocked = Object.values(prog.unlocked).map(Number);
-  if (!Array.isArray(prog.unlocked) || !prog.unlocked.length) prog.unlocked = [0];
-  if (prog.completed && !Array.isArray(prog.completed))
-    prog.completed = Object.values(prog.completed).map(Number);
-  if (!Array.isArray(prog.completed)) prog.completed = [];
-  if (!prog.exResults || typeof prog.exResults !== 'object') prog.exResults = {};
-  return prog;
-}
-
 /* ═══════════════════════════════════════════════════════
    FIREBASE DATA SEEDING
    On first ever load, writes the default 28 students
@@ -864,22 +852,8 @@ const DEFAULT_USERS = [
 
 async function seedIfEmpty() {
   const snap = await fbGet('users');
-  if (snap.exists()) {
-    const existing = snap.val();
-    const repairs = {};
-    DEFAULT_USERS.forEach(u => {
-      const rec = existing[u.uid];
-      if (!rec || !rec.role || !rec.username) {
-        const entry = { ...u };
-        if (u.role === 'student')
-          entry.progress = rec && rec.progress ? normalizeProgress(rec.progress) : dp();
-        repairs[u.uid] = entry;
-      }
-    });
-    if (Object.keys(repairs).length) await fbUpd('users', repairs);
-    return;
-  }
-  console.log('[HPSchool] Seeding…');
+  if (snap.exists()) return; // already seeded
+  console.log('[HPSchool] Seeding initial data…');
   const updates = {};
   DEFAULT_USERS.forEach(u => {
     const entry = { ...u };
@@ -887,6 +861,7 @@ async function seedIfEmpty() {
     updates[u.uid] = entry;
   });
   await fbSet('users', updates);
+  // Seed theme preference
   await fbSet('theme', 'dark');
   console.log('[HPSchool] Seeding complete.');
 }
@@ -994,7 +969,6 @@ window.doLogin = async function() {
       logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
       showPg('pg-admin');
       startAdminLiveSync(); // fires fbSub immediately which calls renderAdm()
-      startActLogSync();    // live activity log listener
       if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
       return;
     }
@@ -1083,8 +1057,6 @@ window.doLogout = function() {
   // Unsubscribe live listeners
   if (_adminUnsubscribe)  { try{_adminUnsubscribe();}catch(e){} _adminUnsubscribe=null; }
   if (_studentUnsubscribe){ try{_studentUnsubscribe();}catch(e){} _studentUnsubscribe=null; }
-  if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe=null; }
-  _actLogCache = [];
   _usersCache = {};
   _passVisible = false;
   const inp = document.getElementById('loginP'); if(inp) inp.type = 'password';
@@ -1140,22 +1112,17 @@ function startAdminLiveSync() {
 }
 
 function startStudentLiveSync(uid, initialData) {
-  try {
-    if (initialData.progress) initialData.progress = normalizeProgress(initialData.progress);
-    _usersCache[uid] = { uid, ...initialData };
-    initApp(initialData);
-  } catch(e) {
-    console.error('[HPSchool] initApp error:', e);
-    _usersCache[uid] = { uid, ...initialData, progress: dp() };
-    try { initApp({ ...initialData, progress: dp() }); } catch(e2) {}
-  }
+  // Populate cache with the student's own data
+  _usersCache[uid] = { uid, ...initialData };
+  initApp(initialData);
+
   if (_studentUnsubscribe) { try{_studentUnsubscribe();}catch(e){} }
+  // Listen for live changes — best-effort, not required for login to work
   if (_fbReady) {
     try {
       _studentUnsubscribe = fbSub(`users/${uid}`, snap => {
         if (!snap.exists()) return;
         const updated = { uid, ...snap.val() };
-        if (updated.progress) updated.progress = normalizeProgress(updated.progress);
         _usersCache[uid] = updated;
         const appActive = document.getElementById('pg-app').classList.contains('active');
         if (appActive && curUser && !curUser.isAdmin) { renderSB(); updateNavBtns(); }
@@ -1171,7 +1138,7 @@ function getStu() { return _usersCache[curUser.uid] || null; }
 function getProg() {
   const s = getStu();
   if (!s) return dp();
-  s.progress = normalizeProgress(s.progress);
+  if (!s.progress) s.progress = dp();
   return s.progress;
 }
 
@@ -1192,68 +1159,25 @@ function saveProg() {
    ACTIVITY LOG  (Firebase list)
 ═══════════════════════════════════════════════════════ */
 function logAct(msg, color='') {
-  if (!_fbReady) { console.warn('[HPSchool] logAct skipped — Firebase not ready'); return; }
-  try {
-    fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() })
-      .catch(e => console.error('[HPSchool] logAct write failed:', e));
-  } catch(e) { console.error('[HPSchool] logAct error:', e); }
+  if (!_fbReady) return; // offline — silently skip
+  try { fbPush('actLog', { msg, color, time: new Date().toLocaleTimeString() }).catch(()=>{}); } catch(e) {}
 }
 
-// ── Live actLog using onChildAdded ───────────────────
-// onChildAdded fires once per existing entry on connect,
-// then again for every new entry — perfect for a push-list
-let _actLogUnsubscribe = null;
-let _actLogCache = [];
-
-function startActLogSync() {
-  if (!_fbReady) return;
-  // Clean up any existing listener
-  if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe = null; }
-  _actLogCache = [];
-
-  const ref = fbRef('actLog');
-
-  // onChildAdded: fires for each existing child, then for each new one
-  const handler = ref.on('child_added', snap => {
-    const entry = snap.val();
-    if (!entry) return;
-    _actLogCache.unshift(entry); // newest first
-    if (_actLogCache.length > 100) _actLogCache.pop();
-    // Refresh the admin UI if it's open
-    const adminActive = document.getElementById('pg-admin').classList.contains('active');
-    if (adminActive && curUser && curUser.isAdmin) {
-      if (admSec2 === 'overview') _refreshOverviewLogs();
-      else if (admSec2 === 'logs') _refreshLogsPanel();
-    }
-  }, e => console.error('[HPSchool] actLog listener error:', e));
-
-  _actLogUnsubscribe = () => ref.off('child_added', handler);
-  console.log('[HPSchool] actLog live listener started');
-}
-
-function _refreshOverviewLogs() {
-  const el = document.getElementById('actLogBody'); if (!el) return;
-  el.innerHTML = _actLogCache.slice(0,15).length
-    ? _actLogCache.slice(0,15).map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
-    : '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>';
-}
-
-function _refreshLogsPanel() {
-  const el = document.getElementById('admLogList'); if (!el) return;
-  el.innerHTML = _actLogCache.length
-    ? `<span style="font-size:11px;color:var(--txt3);display:block;margin-bottom:8px">${_actLogCache.length} entries</span>`
-      + _actLogCache.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
-    : '<div style="color:var(--txt3);font-size:12.5px">No activity logged yet.</div>';
-}
-
+// Read actLog once for display (admin panel only)
 async function getActLog(limit=100) {
-  return _actLogCache.slice(0, limit);
+  try {
+    const timeout = new Promise(resolve => setTimeout(() => resolve(null), 5000));
+    const snap = await Promise.race([fbGet('actLog'), timeout]);
+    if (!snap || !snap.exists()) return [];
+    const entries = [];
+    snap.forEach(child => entries.push(child.val()));
+    return entries.reverse().slice(0, limit);
+  } catch(e) { return []; }
 }
 
 window.clrLogs = async function() {
   if (!confirm('Clear all activity logs? This cannot be undone.')) return;
   await fbDel('actLog');
-  _actLogCache = [];
   toast('Logs cleared.'); renderAdm();
 }
 
@@ -2534,10 +2458,24 @@ window.submitPrac = function() {
   } else if (!prog.practisePassed) {
     toast(`Score: ${Math.round(prog.practiseScore*100)}% — need 100% to pass`, 'warn');
   }
+  // Save what the student typed BEFORE re-rendering so we can restore wrong answers
+  const savedAnswers = {};
+  L.exercises.forEach((_,i) => {
+    const ta = document.getElementById(`exta-4-${i}`);
+    if (ta && ta.value.trim()) savedAnswers[i] = ta.value;
+  });
   saveProg(); updateNavBtns();
   renderPracPage(document.getElementById('lscroll'));
   attachExTAs(4, L.exercises.length);
   refreshExBadges(L, 4);
+  // Restore typed answers — keep correct ones as-is, restore wrong ones with what student typed
+  L.exercises.forEach((_,i) => {
+    const wasCorrect = prog.exResults[`4_${i}`] === true;
+    if (!wasCorrect && savedAnswers[i]) {
+      const ta = document.getElementById(`exta-4-${i}`);
+      if (ta) ta.value = savedAnswers[i];
+    }
+  });
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -2736,7 +2674,14 @@ function admOverview(body) {
       <div id="actLogBody" data-token="${token}" style="padding:14px 16px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div>
     </div>`;
 
-  setTimeout(() => _refreshOverviewLogs(), 0);
+  getActLog(15).then(logs => {
+    const el = document.getElementById('actLogBody');
+    // Ignore if the DOM has been replaced by a newer render
+    if (!el || el.dataset.token != token) return;
+    el.innerHTML = logs.length
+      ? logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
+      : '<div style="color:var(--txt3);font-size:12.5px">No activity yet.</div>';
+  });
 }
 
 function admStudents(body) {
@@ -2838,9 +2783,14 @@ function admProgress(body) {
     </div>`;
 }
 
-function admLogs(body) {
+async function admLogs(body) {
   body.innerHTML = `<div class="scard"><div class="scard-ttl">📋 Activity Log <button class="btn btn-xs btn-red" style="margin-left:auto" onclick="clrLogs()">Clear All</button></div><div id="admLogList" style="min-height:40px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div></div>`;
-  _refreshLogsPanel();
+  const logs = await getActLog(100);
+  const el = document.getElementById('admLogList'); if (!el) return;
+  el.innerHTML = logs.length
+    ? `<span style="font-size:11px;color:var(--txt3);display:block;margin-bottom:8px">${logs.length} entries</span>`
+      + logs.map(l=>`<div class="log-e"><div class="log-d ${Security.esc(l.color||'')}"></div><div class="log-msg">${Security.esc(l.msg)}</div><div class="log-t">${Security.esc(l.time||'')}</div></div>`).join('')
+    : '<div style="color:var(--txt3);font-size:12.5px">No activity logged yet.</div>';
 }
 
 function admSettings(body) {
@@ -3346,7 +3296,6 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
     if (curUser.isAdmin) {
       showPg('pg-admin');
       startAdminLiveSync();  // fires fbSub immediately which calls renderAdm()
-    startActLogSync();     // live activity log listener
     } else {
       // Use saved data to start the app instantly, then Firebase live sync
       // will update the cache and re-render once it arrives.
