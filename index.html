@@ -4077,11 +4077,20 @@ window.viewStudentReport = function(uid) {
   openM('mStudentReport');
 };
 
+/* ── jsPDF color helpers — avoids 'Invalid argument' errors ────────── */
+function _fc(doc, r, g, b) { doc.setFillColor(Math.round(r), Math.round(g), Math.round(b)); }
+function _tc(doc, r, g, b) { doc.setTextColor(Math.round(r), Math.round(g), Math.round(b)); }
+function _dc(doc, r, g, b) { doc.setDrawColor(Math.round(r), Math.round(g), Math.round(b)); }
+function _fca(doc, a)      { _fc(doc, a[0], a[1], a[2]); }
+function _tca(doc, a)      { _tc(doc, a[0], a[1], a[2]); }
+function _dca(doc, a)      { _dc(doc, a[0], a[1], a[2]); }
+function _fcam(doc, a, f)  { _fc(doc, a[0]*f, a[1]*f, a[2]*f); }  // multiply
+function _fcao(doc, a, o)  { _fc(doc, a[0]*0.06+o, a[1]*0.06+o, a[2]*0.06+o); }
+function _dcan(doc, a, f)  { _dc(doc, a[0]*f, a[1]*f, a[2]*f); }
+
 window.exportReportPDF = function() {
-  // ── Guard: jsPDF must be loaded ──────────────────────────────────────
   if (!window.jspdf || !window.jspdf.jsPDF) {
-    toast('PDF library not loaded yet — please wait a moment and try again.', 'err');
-    return;
+    toast('PDF library not loaded yet — please wait and try again.', 'err'); return;
   }
   const body = document.getElementById('mReportBody');
   if (!body) { toast('Report not open.', 'err'); return; }
@@ -4089,544 +4098,331 @@ window.exportReportPDF = function() {
   if (!uid) { toast('No student selected.', 'err'); return; }
   const s = findUser(uid);
   if (!s) { toast('Student not found.', 'err'); return; }
-
-  try {
-    _buildSingleStudentPDF(s);
-    toast('📋 Report downloaded!');
-  } catch(e) {
-    console.error('[CodeClub] PDF error:', e);
-    toast('PDF generation failed: ' + e.message, 'err');
-  }
+  try { _buildSingleStudentPDF(s); toast('📋 Report downloaded!'); }
+  catch(e) { console.error('[CodeClub] PDF error:', e); toast('PDF failed: ' + e.message, 'err'); }
 };
 
-/* ═══════════════════════════════════════════════════════
-   PDF HELPERS — shared drawing primitives
-═══════════════════════════════════════════════════════ */
+/* ═══ SHARED DRAWING HELPERS ═══════════════════════════════════════════ */
 function _pdfHeader(doc, W, title, subtitle) {
-  // Dark header band
-  doc.setFillColor(10,14,22);  doc.rect(0,0,W,32,'F');
-  doc.setFillColor(245,166,35); doc.rect(0,30,W,1.5,'F');
-  // Amber accent strip left
-  doc.setFillColor(245,166,35); doc.rect(0,0,3,32,'F');
-  // Title
-  doc.setTextColor(245,166,35); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  _fc(doc,10,14,22); doc.rect(0,0,W,32,'F');
+  _fc(doc,245,166,35); doc.rect(0,30,W,1.5,'F');
+  _fc(doc,245,166,35); doc.rect(0,0,3,32,'F');
+  _tc(doc,245,166,35); doc.setFontSize(14); doc.setFont('helvetica','bold');
   doc.text(title, 10, 14);
-  doc.setTextColor(143,163,188); doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+  _tc(doc,143,163,188); doc.setFontSize(8.5); doc.setFont('helvetica','normal');
   doc.text(subtitle, 10, 23);
-  // Right: generated timestamp
-  doc.setTextColor(90,112,144); doc.setFontSize(7.5);
-  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, W-8, 23, {align:'right'});
+  _tc(doc,90,112,144); doc.setFontSize(7.5);
+  doc.text('Generated: '+new Date().toLocaleString('en-GB'), W-8, 23, {align:'right'});
 }
 
 function _pdfFooter(doc, W, H, pageNum, totalPages, studentName) {
-  doc.setFillColor(10,14,22); doc.rect(0,H-10,W,10,'F');
-  doc.setFillColor(245,166,35); doc.rect(0,H-11,W,1,'F');
-  doc.setTextColor(90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  _fc(doc,10,14,22); doc.rect(0,H-10,W,10,'F');
+  _fc(doc,245,166,35); doc.rect(0,H-11,W,1,'F');
+  _tc(doc,90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
   doc.text('Code Club · SQL Fundamentals · Confidential', 8, H-4);
-  if (studentName) doc.text(`Student: ${studentName}`, W/2, H-4, {align:'center'});
-  doc.text(`Page ${pageNum} of ${totalPages}`, W-8, H-4, {align:'right'});
+  if (studentName) doc.text('Student: '+studentName, W/2, H-4, {align:'center'});
+  doc.text('Page '+pageNum+' of '+totalPages, W-8, H-4, {align:'right'});
 }
 
-function _pdfSectionTitle(doc, mar, y, text, color) {
-  const col = color || [245,166,35];
-  doc.setFillColor(...col.map(v=>Math.round(v*0.08)));
-  doc.rect(mar, y, 0, 0); // no fill — just label
-  doc.setDrawColor(...col); doc.setLineWidth(0.5);
+function _pdfSectionTitle(doc, mar, y, text, col) {
+  const r=col[0], g=col[1], b=col[2];
+  _tc(doc,r,g,b); doc.setFontSize(9.5); doc.setFont('helvetica','bold');
+  _dc(doc,r,g,b); doc.setLineWidth(0.5);
   doc.line(mar, y+5, mar+3, y+5);
-  doc.setTextColor(...col); doc.setFontSize(9.5); doc.setFont('helvetica','bold');
   doc.text(text, mar+6, y+5);
-  return y + 10;
+  return y+10;
 }
 
-function _pdfInfoRow(doc, mar, y, W, label, value, valueColor) {
-  doc.setTextColor(90,112,144); doc.setFontSize(8); doc.setFont('helvetica','normal');
+function _pdfInfoRow(doc, mar, y, W, label, value, vc) {
+  _tc(doc,90,112,144); doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.text(label, mar, y);
-  doc.setTextColor(...(valueColor||[220,232,245])); doc.setFont('helvetica','bold');
-  doc.text(String(value||'—'), mar+58, y);
-  return y + 5.5;
+  if(vc) _tca(doc,vc); else _tc(doc,220,232,245);
+  doc.setFont('helvetica','bold');
+  doc.text(String(value||'—'), mar+60, y);
+  return y+5.5;
 }
 
-function _pdfProgressBar(doc, x, y, width, height, pct, colorFull, colorEmpty) {
-  // Background
-  doc.setFillColor(...(colorEmpty||[30,38,52])); doc.roundedRect(x,y,width,height,1,1,'F');
-  // Fill
-  if (pct > 0) {
-    const fillW = Math.max(2, (pct/100)*width);
-    doc.setFillColor(...(colorFull||[245,166,35])); doc.roundedRect(x,y,fillW,height,1,1,'F');
-  }
+function _pdfProgressBar(doc, x, y, width, height, pct, colFull, colEmpty) {
+  const ef=colEmpty||[30,38,52], ff=colFull||[245,166,35];
+  _fca(doc,ef); doc.roundedRect(x,y,width,height,1,1,'F');
+  if(pct>0){ const fw=Math.max(2,(pct/100)*width); _fca(doc,ff); doc.roundedRect(x,y,fw,height,1,1,'F'); }
 }
 
-function _pdfStatsBox(doc, x, y, w, h, value, label, valueColor) {
-  doc.setFillColor(18,24,36); doc.roundedRect(x,y,w,h,2,2,'F');
-  doc.setDrawColor(40,54,78); doc.setLineWidth(0.3); doc.roundedRect(x,y,w,h,2,2,'S');
-  doc.setTextColor(...(valueColor||[245,166,35])); doc.setFontSize(16); doc.setFont('helvetica','bold');
+function _pdfStatsBox(doc, x, y, w, h, value, label, vc) {
+  _fc(doc,18,24,36); doc.roundedRect(x,y,w,h,2,2,'F');
+  _dc(doc,40,54,78); doc.setLineWidth(0.3); doc.roundedRect(x,y,w,h,2,2,'S');
+  if(vc) _tca(doc,vc); else _tc(doc,245,166,35);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
   doc.text(String(value), x+w/2, y+h*0.52, {align:'center'});
-  doc.setTextColor(90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  _tc(doc,90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
   doc.text(label.toUpperCase(), x+w/2, y+h*0.82, {align:'center'});
 }
 
-/* ═══════════════════════════════════════════════════════
-   SINGLE STUDENT DETAILED PDF
-═══════════════════════════════════════════════════════ */
+/* ═══ SINGLE STUDENT REPORT ════════════════════════════════════════════ */
 function _buildSingleStudentPDF(s) {
   const { jsPDF } = window.jspdf;
-  const doc  = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
   const W=210, H=297, mar=14;
-
-  const p      = normalizeProgress(s.progress);
-  const comp   = p.completed || [];
-  const exR    = p.exResults || {};
-  const lastDT = p.lastAccess ? new Date(p.lastAccess) : null;
-
-  // ── Overall numbers ────────────────────────────────────────────────
-  const lessDone   = comp.filter(x=>x<4).length;
-  const overallPct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
-  const pracScore  = p.practiseScore!=null ? Math.round(p.practiseScore*100) : null;
-  const totalEx    = LESSON_EX_COUNTS.reduce((a,b)=>a+b,0);
-  let   completedEx = 0;
-  LESSON_NAMES.forEach((_,li)=>{ for(let j=0;j<LESSON_EX_COUNTS[li];j++) if(exR[`${li}_${j}`]) completedEx++; });
-  const exPct = Math.round(completedEx/totalEx*100);
-
-  // ── Lesson stats ────────────────────────────────────────────────────
-  const lStats = LESSON_NAMES.map((name,li)=>{
-    const cnt=LESSON_EX_COUNTS[li]; let done=0;
-    for(let j=0;j<cnt;j++) if(exR[`${li}_${j}`]) done++;
-    const pct=cnt>0?Math.round(done/cnt*100):0;
-    return {li,name,cnt,done,pct,isDone:comp.includes(li)};
-  });
-  const excelled    = lStats.filter(l=>l.pct===100&&l.cnt>0);
-  const needsWork   = lStats.filter(l=>l.done>0&&l.pct<80);
-  const notStarted  = lStats.filter(l=>l.done===0&&!l.isDone);
-  const daysSince   = lastDT ? Math.floor((Date.now()-lastDT)/864e5) : null;
-
-  // ══════════ PAGE 1 ═════════════════════════════════════════════════
-  _pdfHeader(doc, W, 'CODE CLUB — Student Progress Report', 'SQL Fundamentals Course · Detailed Assessment');
-  let y = 38;
-
-  // ── Student profile card ────────────────────────────────────────────
-  doc.setFillColor(15,20,30); doc.roundedRect(mar,y,W-mar*2,36,3,3,'F');
-  doc.setDrawColor(245,166,35); doc.setLineWidth(0.4); doc.roundedRect(mar,y,W-mar*2,36,3,3,'S');
-  // Avatar circle
-  doc.setFillColor(30,45,70); doc.circle(mar+16,y+18,11,'F');
-  doc.setTextColor(245,166,35); doc.setFontSize(14); doc.setFont('helvetica','bold');
-  doc.text(s.name.charAt(0).toUpperCase(), mar+16, y+21, {align:'center'});
-  // Name + details
-  doc.setTextColor(220,232,245); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text(s.name, mar+32, y+13);
-  doc.setTextColor(143,163,188); doc.setFontSize(8.5); doc.setFont('helvetica','normal');
-  doc.text(`Username: ${s.username}`, mar+32, y+21);
-  const statusTxt = s.active!==false ? 'Active' : 'Inactive';
-  const statusCol = s.active!==false ? [62,207,110] : [245,85,90];
-  doc.setTextColor(...statusCol);
-  doc.text(`Status: ${statusTxt}`, mar+32, y+28);
-  doc.setTextColor(143,163,188); doc.setFontSize(8);
-  doc.text(`Report Date: ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}`, W-mar-2, y+13, {align:'right'});
-  y += 42;
-
-  // ── Key metrics boxes ────────────────────────────────────────────────
-  const boxW=32, boxH=22, boxGap=4;
-  const boxes=[
-    {v:overallPct+'%',  l:'Overall',      c:[245,166,35]},
-    {v:lessDone+'/4',   l:'Lessons Done', c:lessDone===4?[62,207,110]:[91,156,246]},
-    {v:exPct+'%',       l:'Exercises',    c:exPct===100?[62,207,110]:exPct>50?[245,166,35]:[245,85,90]},
-    {v:pracScore!=null?pracScore+'%':'—', l:'Practise', c:p.practisePassed?[62,207,110]:pracScore!=null?[245,85,90]:[90,112,144]},
-    {v:p.practisePassed?'Yes':'No',       l:'Certified',c:p.practisePassed?[62,207,110]:[90,112,144]},
-  ];
-  const totalW = boxes.length*(boxW+boxGap)-boxGap;
-  let bx = mar+(W-mar*2-totalW)/2;
-  boxes.forEach(b=>{ _pdfStatsBox(doc,bx,y,boxW,boxH,b.v,b.l,b.c); bx+=boxW+boxGap; });
-  y += boxH+8;
-
-  // ── Login / activity ─────────────────────────────────────────────────
-  y = _pdfSectionTitle(doc,mar,y,'Login & Activity',  [91,156,246]);
-  doc.setFillColor(15,20,30); doc.roundedRect(mar,y,W-mar*2,28,2,2,'F');
-  doc.setDrawColor(35,50,75); doc.setLineWidth(0.3); doc.roundedRect(mar,y,W-mar*2,28,2,2,'S');
-  let iy = y+7;
-  iy = _pdfInfoRow(doc,mar+6,iy,W,'Last Login Date:',  lastDT?lastDT.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Has not logged in yet', lastDT?[220,232,245]:[245,85,90]);
-  iy = _pdfInfoRow(doc,mar+6,iy,W,'Last Login Time:',  lastDT?lastDT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'—');
-  iy = _pdfInfoRow(doc,mar+6,iy,W,'Days Since Login:', daysSince===null?'Never logged in':daysSince===0?'Today':daysSince===1?'Yesterday':`${daysSince} days ago`, daysSince===null||daysSince>7?[245,85,90]:daysSince>3?[245,166,35]:[62,207,110]);
-  y += 34;
-
-  // ── Lesson-by-lesson breakdown ───────────────────────────────────────
-  y = _pdfSectionTitle(doc,mar,y,'Lesson Progress Detail', [245,166,35]);
-
-  // Header row
-  doc.setFillColor(20,28,42); doc.rect(mar,y,W-mar*2,6.5,'F');
-  doc.setTextColor(91,156,246); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-  const lCols=[56,28,28,22,28]; let lx=mar+3;
-  ['Lesson','Exercises','Score','Status','Progress Bar'].forEach((h,i)=>{doc.text(h,lx,y+4.5);lx+=lCols[i];});
-  y+=6.5;
-
-  lStats.forEach((ls,ri)=>{
-    const rowH=8;
-    doc.setFillColor(ri%2===0?[16,22,33]:[13,18,28]); doc.rect(mar,y,W-mar*2,rowH,'F');
-    lx=mar+3;
-    // Lesson name
-    doc.setTextColor(220,232,245); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-    doc.text(`L${ls.li+1}: ${ls.name}`,lx,y+5.5); lx+=lCols[0];
-    // Exercises done
-    doc.text(`${ls.done}/${ls.cnt}`,lx,y+5.5); lx+=lCols[1];
-    // Score %
-    const scoreCol = ls.pct===100?[62,207,110]:ls.pct>0?[245,166,35]:[90,112,144];
-    doc.setTextColor(...scoreCol); doc.setFont('helvetica','bold');
-    doc.text(`${ls.pct}%`,lx,y+5.5); lx+=lCols[2];
-    // Status
-    const stTxt = ls.isDone?'Complete':ls.done>0?'In Progress':'Not Started';
-    const stCol = ls.isDone?[62,207,110]:ls.done>0?[91,156,246]:[90,112,144];
-    doc.setTextColor(...stCol); doc.setFontSize(6.8);
-    doc.text(stTxt,lx,y+5.5); lx+=lCols[3];
-    // Progress bar
-    _pdfProgressBar(doc,lx,y+2.5,lCols[4]-3,3,ls.pct,[62,207,110],[22,32,48]);
-    y+=rowH;
-  });
-  y+=6;
-
-  // ── Exercise-level detail ────────────────────────────────────────────
-  if (y > H-60) { doc.addPage(); y=mar+4; }
-  y = _pdfSectionTitle(doc,mar,y,'Exercise Results (All Lessons)', [185,130,245]);
-
-  lStats.forEach(ls=>{
-    if (y > H-35) { doc.addPage(); y=mar+4; }
-    // Lesson mini-header
-    doc.setFillColor(20,15,35); doc.rect(mar,y,W-mar*2,6,'F');
-    doc.setTextColor(185,130,245); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-    doc.text(`L${ls.li+1}: ${ls.name}   (${ls.done}/${ls.cnt} exercises · ${ls.pct}%)`,mar+3,y+4.2);
-    y+=6;
-
-    // Exercise pills row
-    let px=mar+3; const pillH=5.5; const pillPad=9;
-    for(let j=0;j<ls.cnt;j++){
-      const done2=!!exR[`${ls.li}_${j}`];
-      const pCol=done2?[62,207,110]:[245,85,90];
-      const txt=`Ex${j+1}: ${done2?'Pass':'Fail'}`;
-      const txtW=doc.getTextWidth(txt);
-      if(px+txtW+pillPad+2>W-mar){ px=mar+3; y+=pillH+2; if(y>H-25){doc.addPage();y=mar+4;} }
-      doc.setFillColor(...pCol.map(v=>Math.round(v*0.12+8)));
-      doc.setDrawColor(...pCol.map(v=>Math.round(v*0.5)));
-      doc.setLineWidth(0.3);
-      doc.roundedRect(px,y,txtW+pillPad,pillH,1.5,1.5,'FD');
-      doc.setTextColor(...pCol); doc.setFontSize(6.5); doc.setFont('helvetica',done2?'bold':'normal');
-      doc.text(txt,px+pillPad/2,y+3.8);
-      px+=txtW+pillPad+3;
-    }
-    y+=pillH+4;
-  });
-  y+=4;
-
-  // ── Practise assessment detail ───────────────────────────────────────
-  if (y > H-50) { doc.addPage(); y=mar+4; }
-  y = _pdfSectionTitle(doc,mar,y,'Final Assessment (Practise)', [245,166,35]);
-  doc.setFillColor(15,20,30); doc.roundedRect(mar,y,W-mar*2,pracScore!=null?24:12,2,2,'F');
-  let py=y+6;
-  py=_pdfInfoRow(doc,mar+6,py,W,'Attempt Status:', pracScore!=null?'Attempted':'Not yet attempted', pracScore!=null?[220,232,245]:[245,85,90]);
-  if(pracScore!=null){
-    py=_pdfInfoRow(doc,mar+6,py,W,'Score Achieved:', `${pracScore}%`, p.practisePassed?[62,207,110]:[245,85,90]);
-    py=_pdfInfoRow(doc,mar+6,py,W,'Certificate Earned:', p.practisePassed?'Yes — student qualifies':'Not yet — 100% required', p.practisePassed?[62,207,110]:[245,166,35]);
-    // Score bar
-    _pdfProgressBar(doc,mar+6,py,W-mar*2-12,4,pracScore,p.practisePassed?[62,207,110]:[245,85,90],[22,32,48]);
-    py+=6;
-  }
-  y = py+4;
-
-  // ── Insights & recommendations ───────────────────────────────────────
-  if (y > H-55) { doc.addPage(); y=mar+4; }
-  y = _pdfSectionTitle(doc,mar,y,'Insights & Recommendations', [62,207,110]);
-
-  const insights=[];
-  if(overallPct===100) insights.push({c:[62,207,110],icon:'★',t:'Outstanding Performance',d:'This student has completed every lesson and all exercises. An excellent achievement.'});
-  if(excelled.length)  insights.push({c:[62,207,110],icon:'✓',t:`Areas Excelled (${excelled.map(l=>'L'+(l.li+1)).join(', ')})`,d:excelled.map(l=>`${l.name}: 100% (${l.done}/${l.cnt} exercises)`).join(' · ')});
-  if(needsWork.length) insights.push({c:[245,166,35],icon:'△',t:`Areas for Improvement (${needsWork.map(l=>'L'+(l.li+1)).join(', ')})`,d:needsWork.map(l=>`${l.name}: ${l.pct}% (${l.done}/${l.cnt} completed)`).join(' · ')+'. Review uncompleted exercises.'});
-  if(notStarted.length&&lessDone<4) insights.push({c:[245,166,35],icon:'○',t:'Lessons Not Yet Started',d:notStarted.map(l=>l.name).join(', ')+'. Student should be encouraged to progress.'});
-  if(!lastDT)          insights.push({c:[245,85,90], icon:'!',t:'No Login Detected',d:'Student has never logged into the platform. Follow up to ensure they have their credentials.'});
-  else if(daysSince>14) insights.push({c:[245,85,90], icon:'!',t:`Inactive for ${daysSince} Days`,d:`Last login was ${lastDT.toLocaleDateString('en-GB')}. Consider checking in with the student.`});
-  else if(daysSince>7)  insights.push({c:[245,166,35],icon:'△',t:`Not Active Recently (${daysSince}d)`,d:'Student has not logged in for over a week. May need a prompt.'});
-  if(pracScore!=null&&!p.practisePassed) insights.push({c:[245,166,35],icon:'△',t:`Practise Score ${pracScore}% — Not Yet Certified`,d:pracScore>=80?'Very close to passing. One more focused attempt should achieve 100%.':pracScore>=50?'Making progress. Review failed exercises before retrying.':'Needs to revisit lesson material before attempting practise again.'});
-  if(p.practisePassed) insights.push({c:[62,207,110],icon:'★',t:'Certificate Earned',d:'Student has achieved 100% on the final assessment and is eligible for a Certificate of Completion.'});
-
-  insights.forEach(ins=>{
-    const lines=doc.splitTextToSize(ins.d,W-mar*2-18);
-    const boxH=8+lines.length*4.2;
-    if(y+boxH>H-15){doc.addPage();y=mar+4;}
-    doc.setFillColor(...ins.c.map(v=>Math.round(v*0.06+8)));
-    doc.roundedRect(mar,y,W-mar*2,boxH,2,2,'F');
-    doc.setDrawColor(...ins.c.map(v=>Math.round(v*0.4)));
-    doc.setLineWidth(0.3);
-    doc.roundedRect(mar,y,W-mar*2,boxH,2,2,'S');
-    doc.setFillColor(...ins.c); doc.rect(mar,y,2.5,boxH,'F');
-    doc.setTextColor(...ins.c); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-    doc.text(`${ins.icon}  ${ins.t}`,mar+6,y+5.5);
-    doc.setTextColor(180,190,210); doc.setFont('helvetica','normal'); doc.setFontSize(7);
-    lines.forEach((ln,li2)=>doc.text(ln,mar+6,y+10+li2*4.2));
-    y+=boxH+4;
-  });
-
-  // ── Footer on every page ─────────────────────────────────────────────
-  const totalPages=doc.internal.getNumberOfPages();
-  for(let pg=1;pg<=totalPages;pg++){
-    doc.setPage(pg);
-    _pdfFooter(doc,W,H,pg,totalPages,s.name);
-  }
-
-  doc.save(`CodeClub_Report_${s.name.replace(/\W+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+  _buildStudentPageSet(doc, s, W, H, mar);
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let pg=1;pg<=totalPages;pg++){ doc.setPage(pg); _pdfFooter(doc,W,H,pg,totalPages,s.name); }
+  doc.save('CodeClub_Report_'+s.name.replace(/\W+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf');
 }
 
-/* ═══════════════════════════════════════════════════════
-   BULK PDF — one full detailed report per student
-   Same layout as single student, all students in one file
-═══════════════════════════════════════════════════════ */
-window.exportAllReportsPDF = function() {
-  if (!window.jspdf || !window.jspdf.jsPDF) {
-    toast('PDF library not loaded yet — please wait a moment and try again.', 'err');
-    return;
-  }
-  const students = getStudents();
-  if (!students.length) { toast('No students found.', 'warn'); return; }
-
-  toast(`Building PDF for ${students.length} students… please wait ⏳`, 'info');
-
-  try {
-    const { jsPDF } = window.jspdf;
-    const W=210, H=297, mar=14;
-    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    let isFirstPage = true;
-
-    // ── Cover page ──────────────────────────────────────────────────────
-    doc.setFillColor(10,14,22); doc.rect(0,0,W,H,'F');
-    doc.setFillColor(245,166,35); doc.rect(0,H*0.38,W,2,'F');
-    doc.setFillColor(245,166,35); doc.rect(0,H*0.38+3,W,0.4,'F');
-    // Logo block
-    doc.setFillColor(245,166,35); doc.roundedRect(W/2-18,H*0.25-18,36,36,5,5,'F');
-    doc.setTextColor(10,14,22); doc.setFontSize(22); doc.setFont('helvetica','bold');
-    doc.text('</>', W/2, H*0.25+5, {align:'center'});
-    // Title
-    doc.setTextColor(245,166,35); doc.setFontSize(26); doc.setFont('helvetica','bold');
-    doc.text('CODE CLUB', W/2, H*0.44, {align:'center'});
-    doc.setTextColor(220,232,245); doc.setFontSize(13); doc.setFont('helvetica','normal');
-    doc.text('SQL Fundamentals Course', W/2, H*0.44+9, {align:'center'});
-    doc.setTextColor(143,163,188); doc.setFontSize(10);
-    doc.text('Full Class Progress Reports', W/2, H*0.5, {align:'center'});
-    // Stats strip
-    const cert=students.filter(s=>s.progress?.practisePassed).length;
-    const active=students.filter(s=>s.progress?.lastAccess).length;
-    const avgO=students.length?Math.round(students.reduce((sm,s)=>{
-      const p=normalizeProgress(s.progress);const comp=p.completed||[];
-      return sm+(comp.filter(x=>x<4).length+(p.practisePassed?1:0))/5*100;
-    },0)/students.length):0;
-    const statsY=H*0.6;
-    [[students.length,'Total Students'],[cert,'Certified'],[active,'Ever Logged In'],[avgO+'%','Avg Progress']].forEach((st,i)=>{
-      const bx=mar+i*(W-mar*2)/4, bw=(W-mar*2)/4-3;
-      doc.setFillColor(15,22,36); doc.roundedRect(bx,statsY,bw,22,2,2,'F');
-      doc.setDrawColor(40,60,90); doc.setLineWidth(0.3); doc.roundedRect(bx,statsY,bw,22,2,2,'S');
-      doc.setTextColor(245,166,35); doc.setFontSize(16); doc.setFont('helvetica','bold');
-      doc.text(String(st[0]),bx+bw/2,statsY+12,{align:'center'});
-      doc.setTextColor(90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-      doc.text(st[1].toUpperCase(),bx+bw/2,statsY+18,{align:'center'});
-    });
-    // Footer of cover
-    doc.setTextColor(60,80,110); doc.setFontSize(8);
-    doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, W/2, H-20, {align:'center'});
-    doc.text(`${students.length} student report${students.length!==1?'s':''} follow`, W/2, H-14, {align:'center'});
-
-    // ── One full report per student ──────────────────────────────────────
-    students.forEach((s, si) => {
-      doc.addPage();
-      // Re-use same drawing logic as single student
-      _buildStudentPageSet(doc, s, W, H, mar);
-    });
-
-    // ── Page numbers + footers ───────────────────────────────────────────
-    const totalPages=doc.internal.getNumberOfPages();
-    // Page 1 is cover — skip
-    // Pages 2+ are student pages
-    let pgOffset=1; // cover = page 1
-    students.forEach((s,si)=>{
-      // We need to know how many pages each student used
-      // Simpler: just footer every page with global page number
-    });
-    for(let pg=1;pg<=totalPages;pg++){
-      doc.setPage(pg);
-      if(pg===1){
-        // Cover page — already has its own footer line
-      } else {
-        // Find which student this page belongs to — show in footer
-        doc.setFillColor(10,14,22); doc.rect(0,H-10,W,10,'F');
-        doc.setFillColor(245,166,35); doc.rect(0,H-11,W,1,'F');
-        doc.setTextColor(90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
-        doc.text('Code Club · SQL Fundamentals · Confidential', 8, H-4);
-        doc.text(`Page ${pg} of ${totalPages}`, W-8, H-4, {align:'right'});
-      }
-    }
-
-    doc.save(`CodeClub_AllReports_${new Date().toISOString().slice(0,10)}.pdf`);
-    toast(`📄 PDF exported — ${students.length} student reports!`);
-  } catch(e) {
-    console.error('[CodeClub] Bulk PDF error:', e);
-    toast('PDF generation failed: ' + e.message, 'err');
-  }
-};
-
-/* ── Draws one student's full report into the current jsPDF document ── */
+/* ═══ DRAWS ONE STUDENT'S PAGES INTO doc ════════════════════════════════ */
 function _buildStudentPageSet(doc, s, W, H, mar) {
   const p      = normalizeProgress(s.progress);
-  const comp   = p.completed || [];
-  const exR    = p.exResults || {};
+  const comp   = p.completed||[];
+  const exR    = p.exResults||{};
   const lastDT = p.lastAccess ? new Date(p.lastAccess) : null;
-
   const lessDone   = comp.filter(x=>x<4).length;
   const overallPct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
   const pracScore  = p.practiseScore!=null ? Math.round(p.practiseScore*100) : null;
   const totalEx    = LESSON_EX_COUNTS.reduce((a,b)=>a+b,0);
-  let   completedEx = 0;
-  LESSON_NAMES.forEach((_,li)=>{ for(let j=0;j<LESSON_EX_COUNTS[li];j++) if(exR[`${li}_${j}`]) completedEx++; });
-  const exPct = Math.round(completedEx/totalEx*100);
+  let   completedEx=0;
+  LESSON_NAMES.forEach((_,li)=>{ for(let j=0;j<LESSON_EX_COUNTS[li];j++) if(exR[li+'_'+j]) completedEx++; });
+  const exPct     = Math.round(completedEx/totalEx*100);
   const daysSince = lastDT ? Math.floor((Date.now()-lastDT)/864e5) : null;
-
-  const lStats = LESSON_NAMES.map((name,li)=>{
+  const lStats    = LESSON_NAMES.map((name,li)=>{
     const cnt=LESSON_EX_COUNTS[li]; let done=0;
-    for(let j=0;j<cnt;j++) if(exR[`${li}_${j}`]) done++;
-    return {li,name,cnt,done,pct:cnt>0?Math.round(done/cnt*100):0,isDone:comp.includes(li)};
+    for(let j=0;j<cnt;j++) if(exR[li+'_'+j]) done++;
+    return {li,name,cnt,done,pct:cnt?Math.round(done/cnt*100):0, isDone:comp.includes(li)};
   });
   const excelled  = lStats.filter(l=>l.pct===100&&l.cnt>0);
   const needsWork = lStats.filter(l=>l.done>0&&l.pct<80);
   const notStarted= lStats.filter(l=>l.done===0&&!l.isDone);
 
-  // ── Header ──────────────────────────────────────────────────────────
-  _pdfHeader(doc, W, 'CODE CLUB — Student Progress Report', `SQL Fundamentals Course · ${s.name}`);
-  let y = 38;
+  // ─── PAGE 1: HEADER + PROFILE + METRICS + ACTIVITY ───────────────────
+  _pdfHeader(doc, W, 'CODE CLUB — Student Progress Report', 'SQL Fundamentals Course · Detailed Assessment');
+  let y=38;
 
   // Profile card
-  doc.setFillColor(15,20,30); doc.roundedRect(mar,y,W-mar*2,34,3,3,'F');
-  doc.setDrawColor(245,166,35); doc.setLineWidth(0.4); doc.roundedRect(mar,y,W-mar*2,34,3,3,'S');
-  doc.setFillColor(30,45,70); doc.circle(mar+14,y+17,10,'F');
-  doc.setTextColor(245,166,35); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text(s.name.charAt(0), mar+14, y+20, {align:'center'});
-  doc.setTextColor(220,232,245); doc.setFontSize(12); doc.setFont('helvetica','bold');
+  _fc(doc,15,20,30); doc.roundedRect(mar,y,W-mar*2,36,3,3,'F');
+  _dc(doc,245,166,35); doc.setLineWidth(0.4); doc.roundedRect(mar,y,W-mar*2,36,3,3,'S');
+  _fc(doc,30,45,70); doc.circle(mar+14,y+18,10,'F');
+  _tc(doc,245,166,35); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text(s.name.charAt(0), mar+14, y+21, {align:'center'});
+  _tc(doc,220,232,245); doc.setFontSize(12); doc.setFont('helvetica','bold');
   doc.text(s.name, mar+28, y+12);
-  doc.setTextColor(143,163,188); doc.setFontSize(8); doc.setFont('helvetica','normal');
-  doc.text(`@${s.username}`, mar+28, y+19);
-  const stC2=s.active!==false?[62,207,110]:[245,85,90];
-  doc.setTextColor(...stC2);
-  doc.text(`Status: ${s.active!==false?'Active':'Inactive'}`, mar+28, y+26);
-  doc.setTextColor(143,163,188); doc.setFontSize(8);
-  doc.text(`Report: ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}`, W-mar-2, y+12, {align:'right'});
-  y += 40;
+  _tc(doc,143,163,188); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('@'+s.username, mar+28, y+19);
+  if(s.active!==false) _tc(doc,62,207,110); else _tc(doc,245,85,90);
+  doc.text('Status: '+(s.active!==false?'Active':'Inactive'), mar+28, y+26);
+  _tc(doc,143,163,188); doc.setFontSize(8);
+  doc.text('Report: '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}), W-mar-2, y+12, {align:'right'});
+  y+=42;
 
   // Metric boxes
   const boxes=[
-    {v:overallPct+'%',l:'Overall',c:[245,166,35]},
-    {v:lessDone+'/4',l:'Lessons',c:lessDone===4?[62,207,110]:[91,156,246]},
-    {v:exPct+'%',l:'Exercises',c:exPct===100?[62,207,110]:exPct>50?[245,166,35]:[245,85,90]},
-    {v:pracScore!=null?pracScore+'%':'—',l:'Practise',c:p.practisePassed?[62,207,110]:pracScore!=null?[245,85,90]:[90,112,144]},
-    {v:p.practisePassed?'YES':'NO',l:'Certified',c:p.practisePassed?[62,207,110]:[90,112,144]},
+    {v:overallPct+'%', l:'Overall',   c:[245,166,35]},
+    {v:lessDone+'/4',  l:'Lessons',   c:lessDone===4?[62,207,110]:[91,156,246]},
+    {v:exPct+'%',      l:'Exercises', c:exPct===100?[62,207,110]:exPct>50?[245,166,35]:[245,85,90]},
+    {v:pracScore!=null?pracScore+'%':'—', l:'Practise', c:p.practisePassed?[62,207,110]:pracScore!=null?[245,85,90]:[90,112,144]},
+    {v:p.practisePassed?'YES':'NO',  l:'Certified', c:p.practisePassed?[62,207,110]:[90,112,144]},
   ];
-  const bxW=30,bxH=20,bxG=4;
-  const totalBW=boxes.length*(bxW+bxG)-bxG;
+  const bxW=30,bxH=20,bxG=4,totalBW=boxes.length*(bxW+bxG)-bxG;
   let bx=mar+(W-mar*2-totalBW)/2;
   boxes.forEach(b=>{ _pdfStatsBox(doc,bx,y,bxW,bxH,b.v,b.l,b.c); bx+=bxW+bxG; });
   y+=bxH+7;
 
-  // Activity
+  // Activity section
   y=_pdfSectionTitle(doc,mar,y,'Login & Activity',[91,156,246]);
-  doc.setFillColor(13,18,28); doc.roundedRect(mar,y,W-mar*2,22,2,2,'F');
+  _fc(doc,13,18,28); doc.roundedRect(mar,y,W-mar*2,24,2,2,'F');
   let iy=y+6;
-  iy=_pdfInfoRow(doc,mar+5,iy,W,'Last Login:',lastDT?lastDT.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})+' at '+lastDT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'Never logged in',lastDT?[220,232,245]:[245,85,90]);
-  iy=_pdfInfoRow(doc,mar+5,iy,W,'Activity:',daysSince===null?'Never accessed':daysSince===0?'Active today':daysSince===1?'Active yesterday':`Inactive for ${daysSince} days`,daysSince===null||daysSince>7?[245,85,90]:daysSince>3?[245,166,35]:[62,207,110]);
-  y+=28;
+  const lastStr=lastDT?lastDT.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})+' at '+lastDT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'Never logged in';
+  const lastCol=lastDT?[220,232,245]:[245,85,90];
+  iy=_pdfInfoRow(doc,mar+5,iy,W,'Last Login:', lastStr, lastCol);
+  const actStr=daysSince===null?'Never accessed':daysSince===0?'Active today':daysSince===1?'Active yesterday':'Inactive for '+daysSince+' days';
+  const actCol=daysSince===null||daysSince>7?[245,85,90]:daysSince>3?[245,166,35]:[62,207,110];
+  iy=_pdfInfoRow(doc,mar+5,iy,W,'Engagement:', actStr, actCol);
+  iy=_pdfInfoRow(doc,mar+5,iy,W,'Course Progress:', overallPct+'% complete ('+lessDone+' of 4 lessons done)', [220,232,245]);
+  y+=30;
 
-  // Lesson detail table
+  // ─── LESSON PROGRESS TABLE ────────────────────────────────────────────
   y=_pdfSectionTitle(doc,mar,y,'Lesson Progress',[245,166,35]);
-  doc.setFillColor(20,28,42); doc.rect(mar,y,W-mar*2,6.5,'F');
-  doc.setTextColor(91,156,246); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
-  const lCols2=[55,25,25,20,27]; let lx2=mar+3;
-  ['Lesson','Exercises','Score','Status','Progress'].forEach((h,i)=>{doc.text(h,lx2,y+4.5);lx2+=lCols2[i];});
+  _fc(doc,20,28,42); doc.rect(mar,y,W-mar*2,6.5,'F');
+  _tc(doc,91,156,246); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  const lCols=[56,25,22,22,27]; let lx=mar+3;
+  ['Lesson','Exercises','Score','Status','Progress'].forEach((h,i)=>{doc.text(h,lx,y+4.5);lx+=lCols[i];});
   y+=6.5;
+
   lStats.forEach((ls,ri)=>{
-    doc.setFillColor(ri%2===0?[16,22,33]:[13,18,28]); doc.rect(mar,y,W-mar*2,7.5,'F');
-    lx2=mar+3;
-    doc.setTextColor(220,232,245); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
-    doc.text(`L${ls.li+1}: ${ls.name}`,lx2,y+5); lx2+=lCols2[0];
-    doc.text(`${ls.done}/${ls.cnt}`,lx2,y+5); lx2+=lCols2[1];
-    const sc2=ls.pct===100?[62,207,110]:ls.pct>0?[245,166,35]:[90,112,144];
-    doc.setTextColor(...sc2); doc.setFont('helvetica','bold');
-    doc.text(`${ls.pct}%`,lx2,y+5); lx2+=lCols2[2];
+    if(ri%2===0) _fc(doc,16,22,33); else _fc(doc,13,18,28);
+    doc.rect(mar,y,W-mar*2,7.5,'F');
+    lx=mar+3;
+    _tc(doc,220,232,245); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    doc.text('L'+(ls.li+1)+': '+ls.name, lx, y+5); lx+=lCols[0];
+    doc.text(ls.done+'/'+ls.cnt, lx, y+5); lx+=lCols[1];
+    if(ls.pct===100) _tc(doc,62,207,110); else if(ls.pct>0) _tc(doc,245,166,35); else _tc(doc,90,112,144);
+    doc.setFont('helvetica','bold');
+    doc.text(ls.pct+'%', lx, y+5); lx+=lCols[2];
     const stT=ls.isDone?'Complete':ls.done>0?'In Progress':'Not Started';
-    const stC=ls.isDone?[62,207,110]:ls.done>0?[91,156,246]:[90,112,144];
-    doc.setTextColor(...stC); doc.setFontSize(6.8);
-    doc.text(stT,lx2,y+5); lx2+=lCols2[3];
-    _pdfProgressBar(doc,lx2,y+2.5,lCols2[4]-3,3,ls.pct,[62,207,110],[22,32,48]);
+    if(ls.isDone) _tc(doc,62,207,110); else if(ls.done>0) _tc(doc,91,156,246); else _tc(doc,90,112,144);
+    doc.setFontSize(6.8);
+    doc.text(stT, lx, y+5); lx+=lCols[3];
+    _pdfProgressBar(doc,lx,y+2.5,lCols[4]-3,3,ls.pct,
+      ls.isDone?[62,207,110]:[245,166,35], [22,32,48]);
     y+=7.5;
   });
-  y+=4;
+  y+=6;
 
-  // Exercise detail
-  if(y>H-50){doc.addPage();y=mar+4;}
-  y=_pdfSectionTitle(doc,mar,y,'Exercise Results',[185,130,245]);
+  // ─── EXERCISE RESULTS (all lessons) ────────────────────────────────────
+  if(y>H-50){ doc.addPage(); y=mar+4; }
+  y=_pdfSectionTitle(doc,mar,y,'Exercise Results — All Lessons',[185,130,245]);
+
   lStats.forEach(ls=>{
-    if(y>H-28){doc.addPage();y=mar+4;}
-    doc.setFillColor(20,15,35); doc.rect(mar,y,W-mar*2,5.5,'F');
-    doc.setTextColor(185,130,245); doc.setFontSize(7); doc.setFont('helvetica','bold');
-    doc.text(`L${ls.li+1}: ${ls.name}  ·  ${ls.done}/${ls.cnt} passed  ·  ${ls.pct}%`,mar+3,y+4);
+    if(y>H-28){ doc.addPage(); y=mar+4; }
+    _fc(doc,20,15,35); doc.rect(mar,y,W-mar*2,5.5,'F');
+    _tc(doc,185,130,245); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('L'+(ls.li+1)+': '+ls.name+'  ·  '+ls.done+'/'+ls.cnt+' passed  ·  '+ls.pct+'%', mar+3, y+4);
     y+=5.5;
-    let px2=mar+3; const phH=5;
+    let px=mar+3;
     for(let j=0;j<ls.cnt;j++){
-      const ok=!!exR[`${ls.li}_${j}`];
-      const pC=ok?[62,207,110]:[245,85,90];
-      const txt=`Q${j+1}`;
-      const tw=doc.getTextWidth(txt)+7;
-      if(px2+tw>W-mar){px2=mar+3;y+=phH+2;if(y>H-20){doc.addPage();y=mar+4;}}
-      doc.setFillColor(...pC.map(v=>Math.round(v*0.1+6)));
-      doc.setDrawColor(...pC.map(v=>Math.round(v*0.4)));
+      const ok=!!exR[ls.li+'_'+j];
+      const pR=ok?62:245, pG=ok?207:85, pB=ok?110:90;
+      const txt='Q'+(j+1)+': '+(ok?'Pass':'Fail');
+      const tw=doc.getTextWidth(txt)+6;
+      if(px+tw>W-mar){ px=mar+3; y+=6; if(y>H-20){doc.addPage();y=mar+4;} }
+      _fc(doc, pR*0.1+5, pG*0.1+5, pB*0.1+5);
+      _dc(doc, pR*0.4, pG*0.4, pB*0.4);
       doc.setLineWidth(0.25);
-      doc.roundedRect(px2,y,tw,phH,1.2,1.2,'FD');
-      doc.setTextColor(...pC); doc.setFontSize(6.2); doc.setFont('helvetica',ok?'bold':'normal');
-      doc.text(txt,px2+tw/2,y+3.4,{align:'center'});
-      px2+=tw+2;
+      doc.roundedRect(px,y,tw,5,1.2,1.2,'FD');
+      _tc(doc,pR,pG,pB);
+      doc.setFontSize(6.2); doc.setFont('helvetica',ok?'bold':'normal');
+      doc.text(txt, px+tw/2, y+3.4, {align:'center'});
+      px+=tw+2;
     }
-    y+=phH+4;
+    y+=7;
   });
-  y+=2;
 
-  // Practise
-  if(y>H-30){doc.addPage();y=mar+4;}
-  y=_pdfSectionTitle(doc,mar,y,'Final Assessment',[245,166,35]);
-  doc.setFillColor(13,18,28); doc.roundedRect(mar,y,W-mar*2,pracScore!=null?22:10,2,2,'F');
+  // ─── FINAL ASSESSMENT ─────────────────────────────────────────────────
+  if(y>H-34){ doc.addPage(); y=mar+4; }
+  y=_pdfSectionTitle(doc,mar,y,'Final Assessment (Practise)',[245,166,35]);
+  _fc(doc,13,18,28); doc.roundedRect(mar,y,W-mar*2,pracScore!=null?24:12,2,2,'F');
   let py=y+5;
-  py=_pdfInfoRow(doc,mar+5,py,W,'Attempted:',pracScore!=null?'Yes':'No');
+  py=_pdfInfoRow(doc,mar+5,py,W,'Attempted:', pracScore!=null?'Yes':'No');
   if(pracScore!=null){
-    py=_pdfInfoRow(doc,mar+5,py,W,'Score:',`${pracScore}%`,p.practisePassed?[62,207,110]:[245,85,90]);
-    py=_pdfInfoRow(doc,mar+5,py,W,'Certificate:',p.practisePassed?'Earned ✓':'Not yet earned',p.practisePassed?[62,207,110]:[245,166,35]);
+    py=_pdfInfoRow(doc,mar+5,py,W,'Score:', pracScore+'%', p.practisePassed?[62,207,110]:[245,85,90]);
+    py=_pdfInfoRow(doc,mar+5,py,W,'Certificate:', p.practisePassed?'Earned ✓ — eligible for Certificate of Completion':'Not yet — 100% required to pass', p.practisePassed?[62,207,110]:[245,166,35]);
+    _pdfProgressBar(doc,mar+5,py,W-mar*2-10,4,pracScore, p.practisePassed?[62,207,110]:[245,85,90],[22,32,48]);
+    py+=7;
   }
-  y=py+6;
+  y=py+4;
 
-  // Insights
-  if(y>H-50){doc.addPage();y=mar+4;}
+  // ─── INSIGHTS & RECOMMENDATIONS ───────────────────────────────────────
+  if(y>H-55){ doc.addPage(); y=mar+4; }
   y=_pdfSectionTitle(doc,mar,y,'Insights & Recommendations',[62,207,110]);
 
   const ins2=[];
-  if(overallPct===100) ins2.push({c:[62,207,110],icon:'★',t:'Outstanding Performance',d:'Every lesson and exercise complete.'});
-  if(excelled.length)  ins2.push({c:[62,207,110],icon:'✓',t:'Areas Excelled',d:excelled.map(l=>`L${l.li+1} ${l.name}: 100%`).join(' · ')});
-  if(needsWork.length) ins2.push({c:[245,166,35],icon:'△',t:'Areas for Improvement',d:needsWork.map(l=>`L${l.li+1} ${l.name}: ${l.pct}%`).join(' · ')+'. Review uncompleted exercises.'});
-  if(notStarted.length&&lessDone<4) ins2.push({c:[245,166,35],icon:'○',t:'Not Yet Started',d:notStarted.map(l=>l.name).join(', ')});
-  if(!lastDT)           ins2.push({c:[245,85,90],icon:'!',t:'No Login Detected',d:'Student has never logged in. Confirm credentials are provided.'});
-  else if(daysSince>14) ins2.push({c:[245,85,90],icon:'!',t:`Inactive ${daysSince} Days`,d:`Last login: ${lastDT.toLocaleDateString('en-GB')}`});
-  if(pracScore!=null&&!p.practisePassed) ins2.push({c:[245,166,35],icon:'△',t:`Practise: ${pracScore}% — Needs 100%`,d:pracScore>=80?'Very close — encourage one more attempt.':pracScore>=50?'Review failed exercises then retry.':'Revisit lesson content before retrying.'});
-  if(p.practisePassed) ins2.push({c:[62,207,110],icon:'★',t:'Certificate Earned',d:'100% achieved. Eligible for Certificate of Completion.'});
+  if(overallPct===100) ins2.push({c:[62,207,110], icon:'★', t:'Outstanding Performance', d:'This student has completed every lesson and all exercises. An excellent achievement. Certificate has been earned.'});
+  if(excelled.length)  ins2.push({c:[62,207,110], icon:'✓', t:'Areas Excelled', d:excelled.map(l=>'L'+(l.li+1)+' '+l.name+': 100% ('+l.done+'/'+l.cnt+' exercises)').join(' · ')});
+  if(needsWork.length) ins2.push({c:[245,166,35], icon:'△', t:'Areas for Improvement', d:needsWork.map(l=>'L'+(l.li+1)+' '+l.name+': '+l.pct+'% — '+l.cnt-l.done+' exercise(s) remaining').join(' · ')+'. Review and retry the incomplete exercises.'});
+  if(notStarted.length&&lessDone<4) ins2.push({c:[245,166,35], icon:'○', t:'Lessons Not Yet Started', d:notStarted.map(l=>l.name).join(', ')+'. Student should be encouraged to continue.'});
+  if(!lastDT)                ins2.push({c:[245,85,90], icon:'!', t:'No Login Detected', d:'This student has never logged into the platform. Please confirm they have received their login credentials.'});
+  else if(daysSince>14)      ins2.push({c:[245,85,90], icon:'!', t:'Inactive for '+daysSince+' Days', d:'Last login was '+lastDT.toLocaleDateString('en-GB')+'. Student may need a follow-up or check-in.'});
+  else if(daysSince>7)       ins2.push({c:[245,166,35], icon:'△', t:'Not Active Recently ('+daysSince+'d)', d:'Student has not logged in for over a week. Consider a prompt to re-engage.'});
+  if(pracScore!=null&&!p.practisePassed) ins2.push({c:[245,166,35], icon:'△', t:'Practise Score '+pracScore+'% — Not Yet Certified',
+    d:pracScore>=80?'Very close to passing! Encourage one more attempt focusing on the failed questions.':pracScore>=50?'Solid progress. Review the failed exercises and retry the assessment.':'Student needs to revisit the lesson material before attempting the assessment again.'});
+  if(p.practisePassed) ins2.push({c:[62,207,110], icon:'★', t:'Certificate Earned', d:'This student achieved 100% on the final assessment and is fully eligible for a Certificate of Completion.'});
 
   ins2.forEach(ins=>{
-    const lines=doc.splitTextToSize(ins.d,W-mar*2-14);
-    const bH=7+lines.length*4;
-    if(y+bH>H-14){doc.addPage();y=mar+4;}
-    doc.setFillColor(...ins.c.map(v=>Math.round(v*0.05+7)));
+    const lines=doc.splitTextToSize(ins.d, W-mar*2-14);
+    const bH=7+lines.length*4.2;
+    if(y+bH>H-14){ doc.addPage(); y=mar+4; }
+    _fc(doc, ins.c[0]*0.06+7, ins.c[1]*0.06+7, ins.c[2]*0.06+7);
     doc.roundedRect(mar,y,W-mar*2,bH,2,2,'F');
-    doc.setFillColor(...ins.c); doc.rect(mar,y,2,bH,'F');
-    doc.setTextColor(...ins.c); doc.setFontSize(7); doc.setFont('helvetica','bold');
-    doc.text(`${ins.icon} ${ins.t}`,mar+5,y+5);
-    doc.setTextColor(170,185,205); doc.setFont('helvetica','normal'); doc.setFontSize(6.8);
-    lines.forEach((ln,li)=>doc.text(ln,mar+5,y+9+li*4));
-    y+=bH+3;
+    _fc(doc,ins.c[0],ins.c[1],ins.c[2]); doc.rect(mar,y,2,bH,'F');
+    _tc(doc,ins.c[0],ins.c[1],ins.c[2]);
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+    doc.text(ins.icon+'  '+ins.t, mar+5, y+5.5);
+    _tc(doc,170,185,205); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    lines.forEach((ln,li)=>doc.text(ln, mar+5, y+10+li*4.2));
+    y+=bH+4;
   });
 }
 
+/* ═══ BULK CLASS REPORT ════════════════════════════════════════════════ */
+window.exportAllReportsPDF = function() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    toast('PDF library not loaded yet — please wait and try again.', 'err'); return;
+  }
+  const students = getStudents();
+  if (!students.length) { toast('No students found.', 'warn'); return; }
+  toast('Building PDF for '+students.length+' students… please wait ⏳', 'info');
+  try {
+    const { jsPDF } = window.jspdf;
+    const W=210, H=297, mar=14;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+    // ── Cover page ──────────────────────────────────────────────────────
+    _fc(doc,10,14,22); doc.rect(0,0,W,H,'F');
+    _fc(doc,245,166,35); doc.rect(0,H*0.38,W,2,'F');
+    _fc(doc,245,166,35); doc.rect(0,H*0.38+3.5,W,0.5,'F');
+    _fc(doc,245,166,35); doc.roundedRect(W/2-20,H*0.23,40,40,5,5,'F');
+    _tc(doc,10,14,22); doc.setFontSize(26); doc.setFont('helvetica','bold');
+    doc.text('</>', W/2, H*0.23+26, {align:'center'});
+    _tc(doc,245,166,35); doc.setFontSize(28); doc.setFont('helvetica','bold');
+    doc.text('CODE CLUB', W/2, H*0.44, {align:'center'});
+    _tc(doc,220,232,245); doc.setFontSize(13); doc.setFont('helvetica','normal');
+    doc.text('SQL Fundamentals Course', W/2, H*0.44+10, {align:'center'});
+    _tc(doc,143,163,188); doc.setFontSize(11);
+    doc.text('Full Class Progress Reports', W/2, H*0.5, {align:'center'});
+    _tc(doc,143,163,188); doc.setFontSize(9);
+    doc.text('Each student has a full detailed report on the following pages', W/2, H*0.5+8, {align:'center'});
+
+    // Stats strip
+    const cert=students.filter(s=>s.progress&&s.progress.practisePassed).length;
+    const activeCount=students.filter(s=>s.progress&&s.progress.lastAccess).length;
+    const avgO=students.length?Math.round(students.reduce((sm,s)=>{
+      const pp=normalizeProgress(s.progress);const cp=pp.completed||[];
+      return sm+(cp.filter(x=>x<4).length+(pp.practisePassed?1:0))/5*100;
+    },0)/students.length):0;
+    const statsY=H*0.6;
+    const statItems=[[students.length,'Total Students'],[cert,'Certified'],[activeCount,'Logged In'],[avgO+'%','Avg Progress']];
+    const bww=(W-mar*2)/statItems.length-3;
+    statItems.forEach((st,i)=>{
+      const bxx=mar+i*(bww+3);
+      _fc(doc,15,22,36); doc.roundedRect(bxx,statsY,bww,24,2,2,'F');
+      _dc(doc,40,60,90); doc.setLineWidth(0.3); doc.roundedRect(bxx,statsY,bww,24,2,2,'S');
+      _tc(doc,245,166,35); doc.setFontSize(18); doc.setFont('helvetica','bold');
+      doc.text(String(st[0]), bxx+bww/2, statsY+13, {align:'center'});
+      _tc(doc,90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+      doc.text(st[1].toUpperCase(), bxx+bww/2, statsY+20, {align:'center'});
+    });
+    _tc(doc,60,80,110); doc.setFontSize(8);
+    doc.text('Generated: '+new Date().toLocaleString('en-GB'), W/2, H-22, {align:'center'});
+    doc.text(students.length+' detailed student report'+(students.length!==1?'s':'')+' follow', W/2, H-15, {align:'center'});
+
+    // ── One full report per student ──────────────────────────────────────
+    students.forEach(s => {
+      doc.addPage();
+      _buildStudentPageSet(doc, s, W, H, mar);
+    });
+
+    // ── Footer on every page ─────────────────────────────────────────────
+    const totalPages=doc.internal.getNumberOfPages();
+    let stuIdx=0;
+    for(let pg=1;pg<=totalPages;pg++){
+      doc.setPage(pg);
+      if(pg===1){
+        _fc(doc,10,14,22); doc.rect(0,H-10,W,10,'F');
+        _tc(doc,60,80,110); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+        doc.text('Code Club · SQL Fundamentals · Confidential Class Report', W/2, H-4, {align:'center'});
+        doc.text('Page 1 of '+totalPages, W-8, H-4, {align:'right'});
+      } else {
+        // Approximate which student
+        const approxStu = students[Math.min(stuIdx, students.length-1)];
+        _pdfFooter(doc, W, H, pg, totalPages, '');
+      }
+    }
+
+    doc.save('CodeClub_AllReports_'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('📄 PDF exported — '+students.length+' full student reports!');
+  } catch(e) {
+    console.error('[CodeClub] Bulk PDF error:', e);
+    toast('PDF generation failed: '+e.message, 'err');
+  }
+};
 
 
 
