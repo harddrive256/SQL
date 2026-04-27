@@ -55,24 +55,29 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 .page.active{display:flex}
 
 /* ───────── BUTTONS ───────── */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r-sm);font-family:var(--font);font-size:12.5px;font-weight:600;border:1.5px solid var(--bdr);background:var(--bg4);color:var(--txt2);cursor:pointer;transition:var(--t);white-space:nowrap;letter-spacing:.01em}
-.btn:hover:not(:disabled){background:var(--bg5);color:var(--txt);border-color:var(--bdr2)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:var(--r);font-family:var(--font);font-size:12.5px;font-weight:600;border:1.5px solid var(--bdr);background:var(--bg4);color:var(--txt2);cursor:pointer;transition:var(--t);white-space:nowrap;letter-spacing:.01em;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background .15s}
+.btn:hover:not(:disabled)::after{background:rgba(255,255,255,.04)}
+.btn:hover:not(:disabled){background:var(--bg5);color:var(--txt);border-color:var(--bdr2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.btn:active:not(:disabled){transform:translateY(0);box-shadow:none}
 .btn:disabled{opacity:.35;cursor:not-allowed}
-.btn-amber{background:var(--amber);border-color:var(--amber);color:#fff}
-.btn-amber:hover:not(:disabled){background:var(--amber2);border-color:var(--amber2);color:#fff}
-.btn-green{background:var(--green);border-color:var(--green);color:#fff}
-.btn-green:hover:not(:disabled){filter:brightness(1.08)}
-.btn-red{background:var(--red);border-color:var(--red);color:#fff}
-.btn-red:hover:not(:disabled){filter:brightness(1.08)}
-.btn-blue{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn-sm{padding:5px 10px;font-size:11.5px}
-.btn-xs{padding:3px 7px;font-size:11px}
+.btn-amber{background:linear-gradient(135deg,var(--amber),var(--amber2));border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(245,166,35,.25)}
+.btn-amber:hover:not(:disabled){background:linear-gradient(135deg,var(--amber2),#c87010);box-shadow:0 4px 16px rgba(245,166,35,.4);color:#fff}
+.btn-green{background:linear-gradient(135deg,var(--green),#2eb85a);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(62,207,110,.2)}
+.btn-green:hover:not(:disabled){filter:brightness(1.1);box-shadow:0 4px 16px rgba(62,207,110,.35);color:#fff}
+.btn-red{background:linear-gradient(135deg,var(--red),#d43a40);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(245,85,90,.2)}
+.btn-red:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 4px 14px rgba(245,85,90,.35);color:#fff}
+.btn-blue{background:linear-gradient(135deg,var(--blue),#3a7ae0);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(91,156,246,.2)}
+.btn-blue:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 4px 14px rgba(91,156,246,.35);color:#fff}
+.btn-sm{padding:5px 11px;font-size:11.5px}
+.btn-xs{padding:3px 8px;font-size:11px}
 
 /* ───────── INPUTS ───────── */
-.inp{width:100%;padding:9px 12px;border-radius:var(--r-sm);border:1.5px solid var(--bdr);background:var(--bg3);color:var(--txt);font-family:var(--font);font-size:13px;outline:none;transition:var(--t)}
-.inp:focus{border-color:var(--amber);background:var(--bg4)}
+.inp{width:100%;padding:9px 13px;border-radius:var(--r);border:1.5px solid var(--bdr);background:var(--bg3);color:var(--txt);font-family:var(--font);font-size:13px;outline:none;transition:var(--t);box-shadow:inset 0 1px 3px rgba(0,0,0,.12)}
+.inp:focus{border-color:var(--amber);background:var(--bg4);box-shadow:0 0 0 3px rgba(245,166,35,.12),inset 0 1px 3px rgba(0,0,0,.08)}
+.inp:hover:not(:focus){border-color:var(--bdr2)}
 .inp::placeholder{color:var(--txt4)}
-.inp-label{display:block;font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.7px}
+.inp-label{display:block;font-size:10.5px;font-weight:700;color:var(--txt3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px}
 .fg{margin-bottom:14px}
 
 /* ───────── BADGES ───────── */
@@ -91,13 +96,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 @keyframes toastIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
 
 /* ───────── MODALS ───────── */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:8000;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:overlayIn .2s ease}
 .overlay.open{display:flex}
-.modal{background:var(--bg2);border:1.5px solid var(--bdr);border-radius:var(--r-lg);padding:26px;width:90%;max-width:460px;box-shadow:var(--sh);animation:modalIn .2s ease}
-.modal-wide{max-width:680px}
-@keyframes modalIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
-.modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-.modal-foot{margin-top:18px;display:flex;gap:7px;justify-content:flex-end}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg2);border:1.5px solid var(--bdr);border-radius:var(--r-lg);padding:28px;width:90%;max-width:460px;box-shadow:0 24px 64px rgba(0,0,0,.6);animation:modalIn .22s cubic-bezier(.34,1.56,.64,1)}
+.modal-wide{max-width:700px}
+.modal-xl{max-width:900px}
+@keyframes modalIn{from{transform:scale(.92) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:9px;color:var(--txt);padding-bottom:14px;border-bottom:1.5px solid var(--bdr)}
+.modal-foot{margin-top:20px;display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1.5px solid var(--bdr)}
 
 /* ═══════════════════════════════════
    LOGIN PAGE
@@ -477,6 +484,40 @@ tr.stu-inactive td{opacity:.55}
   .stat-grid { grid-template-columns:1fr !important; }
   .topbar-acts .btn { font-size:10px;padding:5px 8px; }
 }
+
+/* ═══ LESSON LOCK / ADMIN ═══ */
+.lock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+.lock-card{background:var(--bg3);border:1.5px solid var(--bdr);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.lock-card-ttl{font-size:12px;font-weight:700;color:var(--txt)}
+.lock-card-sub{font-size:10.5px;color:var(--txt3)}
+.lock-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--txt2)}
+.lock-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--amber);cursor:pointer}
+.lock-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:var(--r-sm);background:var(--bg4);border:1px solid var(--bdr);margin-bottom:5px}
+.lock-stu-name{font-size:12.5px;font-weight:600;color:var(--txt);flex:1}
+.lock-pills{display:flex;gap:5px;flex-wrap:wrap}
+.lock-pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid;transition:var(--t)}
+.lock-pill.unlocked{background:var(--greenbg);color:var(--green);border-color:rgba(62,207,110,.3)}
+.lock-pill.locked{background:var(--redbg);color:var(--red);border-color:rgba(245,85,90,.25)}
+.lock-pill:hover{opacity:.8}
+/* Report styles */
+.rpt-card{background:var(--bg3);border:1.5px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.rpt-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rpt-ttl{font-size:13px;font-weight:700;color:var(--txt)}
+.rpt-metric{text-align:center;padding:10px;background:var(--bg4);border-radius:var(--r-sm);border:1px solid var(--bdr)}
+.rpt-metric-val{font-size:22px;font-weight:800;color:var(--amber);line-height:1}
+.rpt-metric-lbl{font-size:9.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.rpt-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:12px}
+.rpt-lesson-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-sm);background:var(--bg4);border:1px solid var(--bdr);margin-bottom:5px}
+.rpt-ex-bar{flex:1;height:6px;background:var(--bg5);border-radius:3px;overflow:hidden}
+.rpt-ex-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--green));border-radius:3px}
+.rpt-badge-row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.rpt-insight{padding:8px 12px;border-radius:var(--r-sm);font-size:12px;color:var(--txt2);border-left:3px solid;margin-bottom:6px}
+.rpt-insight.good{border-color:var(--green);background:var(--greenbg)}
+.rpt-insight.imp{border-color:var(--amber);background:var(--amberbg)}
+.rpt-insight.warn{border-color:var(--red);background:var(--redbg)}
+/* All-student reports table */
+.rpt-tbl-wrap{overflow-x:auto}
+
 </style>
 </head>
 <body>
@@ -604,7 +645,9 @@ tr.stu-inactive td{opacity:.55}
       <div class="adm-ni active" onclick="admSec('overview',this)">📊 Overview</div>
       <div class="adm-ni" onclick="admSec('students',this)">👨‍🎓 Students</div>
       <div class="adm-ni" onclick="admSec('progress',this)">📈 Progress</div>
-      <div class="adm-ni" onclick="admSec('logs',this)">📋 Activity Logs</div>
+      <div class="adm-ni" onclick="admSec('lessons',this)">🔐 Lesson Access</div>
+      <div class="adm-ni" onclick="admSec('reports',this)">📋 Reports</div>
+      <div class="adm-ni" onclick="admSec('logs',this)">🗒 Activity Logs</div>
       <div class="adm-ni" onclick="admSec('settings',this)">⚙ Settings</div>
     </div>
     <div style="padding:12px 15px;border-top:1.5px solid var(--bdr)">
@@ -732,6 +775,31 @@ tr.stu-inactive td{opacity:.55}
     <div class="modal-foot">
       <button class="btn" onclick="closeM('mBulkPass')">Cancel</button>
       <button class="btn btn-amber" onclick="doBulkPassReset()">🔑 Reset Passwords</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Lesson Access Control Modal -->
+<div class="overlay" id="mLessonAccess">
+  <div class="modal modal-wide">
+    <div class="modal-title">🔐 Lesson Access — <span id="mLessonAccessName"></span></div>
+    <div id="mLessonAccessBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeM('mLessonAccess')">Close</button>
+      <button class="btn btn-amber" onclick="saveLessonAccess()">💾 Save Access</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student Report Modal -->
+<div class="overlay" id="mStudentReport">
+  <div class="modal modal-xl">
+    <div class="modal-title">📋 Student Report — <span id="mReportName"></span></div>
+    <div id="mReportBody" style="max-height:70vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeM('mStudentReport')">Close</button>
+      <button class="btn btn-blue" onclick="exportReportPDF()">⬇ Export PDF</button>
     </div>
   </div>
 </div>
@@ -1157,7 +1225,9 @@ window.doLogout = function() {
   if (_adminUnsubscribe)  { try{_adminUnsubscribe();}catch(e){} _adminUnsubscribe=null; }
   if (_studentUnsubscribe){ try{_studentUnsubscribe();}catch(e){} _studentUnsubscribe=null; }
   if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe=null; }
+  if (_lockSubUnsub) { try{_lockSubUnsub();}catch(e){} _lockSubUnsub=null; }
   _actLogCache = [];
+  _globalLocks = {}; _stuOverrides = {};
   _usersCache = {};
   _passVisible = false;
   const inp = document.getElementById('loginP'); if(inp) inp.type = 'password';
@@ -2349,12 +2419,22 @@ function renderSB() {
     const unlk = prog.unlocked.includes(i);
     const done = prog.completed.includes(i);
     const act  = i === curLI;
+    const adminLocked = (typeof isLessonLockedForStudent === 'function') && curUser
+                        ? isLessonLockedForStudent(curUser.uid, i) : false;
+    const accessible  = unlk && !adminLocked;
+    const ck = done ? '✓' : adminLocked ? '🔐' : act ? '▶' : '○';
     const d = document.createElement('div');
-    d.className = 'sb-item'+(act?' active':'')+(done?' done':'')+(unlk?'':' locked');
-    d.innerHTML = `<span class="sb-ck">${done?'✓':(act?'▶':'○')}</span>`
-                + `<span class="sb-lbl">${L.icon} ${Security.esc(L.title)}</span>`
-                + (unlk?'':'<span style="font-size:10px">🔒</span>');
-    d.onclick = () => { if(unlk) loadLesson(i); else toast('Complete the current lesson first.','warn'); };
+    d.className = 'sb-item'+(act?' active':'')+(done?' done':'')+(accessible?'':' locked');
+    d.innerHTML = `<span class="sb-ck">${ck}</span>`
+                + `<span class="sb-lbl">${L.icon} ${Security.esc(L.title)}`
+                + `${adminLocked && unlk ? '<span style="font-size:9px;color:var(--red);margin-left:3px">locked</span>' : ''}`
+                + `${!unlk && !adminLocked ? '<span style="font-size:10px"> 🔒</span>' : ''}`
+                + `</span>`;
+    d.onclick = () => {
+      if (accessible) loadLesson(i);
+      else if (adminLocked) toast('🔐 This lesson is currently locked by your instructor.','warn');
+      else toast('Complete the current lesson first.','warn');
+    };
     nav.appendChild(d);
   });
   const total = 5;
@@ -2825,11 +2905,13 @@ function admStudents(body) {
       <td><div style="display:flex;align-items:center;gap:7px"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div><span style="font-size:11px;color:var(--txt3)">${pct}%</span></div></td>
       <td style="font-size:11.5px;color:var(--txt3)">${Security.esc(ll)}</td>
       <td><div class="act-row">
-        <button class="btn btn-xs btn-blue" onclick="viewProg('${Security.esc(s.uid)}')">📈</button>
-        <button class="btn btn-xs" onclick="editStu('${Security.esc(s.uid)}')">✏️</button>
-        <button class="btn btn-xs" onclick="unlkAll('${Security.esc(s.uid)}')">🔓</button>
-        <button class="btn btn-xs" onclick="rstStu('${Security.esc(s.uid)}')">↺</button>
-        <button class="btn btn-xs btn-red" onclick="delStu('${Security.esc(s.uid)}')">🗑</button>
+        <button class="btn btn-xs btn-blue" title="Full Report" onclick="viewStudentReport('${Security.esc(s.uid)}')">📋</button>
+        <button class="btn btn-xs" title="Progress" onclick="viewProg('${Security.esc(s.uid)}')">📈</button>
+        <button class="btn btn-xs" title="Edit" onclick="editStu('${Security.esc(s.uid)}')">✏️</button>
+        <button class="btn btn-xs" title="Lesson Access" onclick="openLessonAccess('${Security.esc(s.uid)}')">🔐</button>
+        <button class="btn btn-xs" title="Unlock All" onclick="unlkAll('${Security.esc(s.uid)}')">🔓</button>
+        <button class="btn btn-xs" title="Reset" onclick="rstStu('${Security.esc(s.uid)}')">↺</button>
+        <button class="btn btn-xs btn-red" title="Delete" onclick="delStu('${Security.esc(s.uid)}')">🗑</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -3367,6 +3449,694 @@ window.importCSV = async function() {
   logAct(`Admin imported ${count} student(s) via CSV`, 'g');
 };
 
+
+/* ═══════════════════════════════════════════════════════
+   LESSON LOCK SYSTEM
+   Firebase paths:
+     lessonLocks/global/L{n}  — true = globally locked for all students
+     lessonLocks/students/{uid}/L{n} — 'lock'|'unlock' — per-student override
+   Admin can lock/unlock lessons globally OR per student.
+   When a lesson is globally locked, checkLessonComplete will NOT
+   auto-unlock the next lesson; the student sees it as locked.
+   An individual override can unlock a globally-locked lesson for
+   a specific student, or lock an otherwise-unlocked lesson.
+═══════════════════════════════════════════════════════ */
+
+let _globalLocks  = {};   // { L0: false, L1: false, L2: true, ... }
+let _stuOverrides = {};   // { uid: { L0:'unlock', L2:'lock', ... } }
+let _lockSubUnsub = null;
+
+// Load locks from Firebase on admin login + keep live
+function startLockSync() {
+  if (!_fbReady) return;
+  if (_lockSubUnsub) { try{_lockSubUnsub();}catch(e){} }
+  _lockSubUnsub = fbSub('lessonLocks', snap => {
+    if (!snap.exists()) { _globalLocks={}; _stuOverrides={}; return; }
+    const val = snap.val();
+    _globalLocks  = val.global   || {};
+    _stuOverrides = val.students || {};
+  });
+}
+
+// Is lesson index LI globally locked?
+function isGloballyLocked(li) {
+  return !!_globalLocks[`L${li}`];
+}
+
+// What is the effective lock state for a specific student + lesson?
+// Returns true if locked (blocked), false if accessible
+function isLessonLockedForStudent(uid, li) {
+  const override = (_stuOverrides[uid] || {})[`L${li}`];
+  if (override === 'unlock') return false;   // explicit per-student unlock
+  if (override === 'lock')   return true;    // explicit per-student lock
+  return isGloballyLocked(li);              // fall back to global
+}
+
+// Called by nav() — blocks navigation to a locked lesson
+function checkLockBeforeNav(li) {
+  if (!curUser) return false;
+  return isLessonLockedForStudent(curUser.uid, li);
+}
+
+// Modify checkLessonComplete so completing L(n) does NOT auto-unlock L(n+1)
+// if L(n+1) is admin-locked.
+// Original logic: if all done, push next to unlocked. We keep that but note
+// that nav() will still block if the lesson is admin-locked.
+
+/* ── ADMIN UI: Lesson Access section ── */
+window.admLessons = function(body) {
+  const lessons = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
+  const students = getStudents();
+
+  // Build global lock row
+  let globalRow = '';
+  lessons.forEach((lbl, li) => {
+    const locked = isGloballyLocked(li);
+    globalRow += `
+      <div class="lock-card" style="border-color:${locked?'var(--red)':'var(--green)'}20">
+        <div class="lock-card-ttl">L${li+1}: ${Security.esc(lbl)}</div>
+        <div class="lock-card-sub">${locked?'🔒 Globally locked':'🔓 Available to all'}</div>
+        <label class="lock-toggle">
+          <input type="checkbox" id="glock-${li}" ${locked?'checked':''} onchange="toggleGlobalLock(${li},this.checked)">
+          <span>${locked?'Locked (click to unlock)':'Unlocked (click to lock)'}</span>
+        </label>
+      </div>`;
+  });
+
+  // Build per-student table
+  let stuRows = students.map(s => {
+    const pills = lessons.map((lbl, li) => {
+      const ov = (_stuOverrides[s.uid]||{})[`L${li}`];
+      const globalLocked = isGloballyLocked(li);
+      let state, label, cls;
+      if (ov === 'unlock') { state='unlocked'; label='✓ Unlocked'; cls='unlocked'; }
+      else if (ov === 'lock') { state='locked'; label='✗ Locked'; cls='locked'; }
+      else if (globalLocked) { state='locked'; label='🔒 Global'; cls='locked'; }
+      else { state='unlocked'; label='✓ Open'; cls='unlocked'; }
+      return `<span class="lock-pill ${cls}" title="L${li+1}: ${Security.esc(lbl)}" onclick="toggleStuLessonLock('${Security.esc(s.uid)}',${li},'${state}')">L${li+1}: ${label}</span>`;
+    }).join('');
+    return `<div class="lock-row">
+      <div class="lock-stu-name">${Security.esc(s.name)}</div>
+      <div class="lock-pills">${pills}</div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="scard">
+      <div class="scard-ttl" style="display:flex;align-items:center;gap:8px">
+        🌍 Global Lesson Locks
+        <span style="font-size:11px;color:var(--txt3);font-weight:400">Apply to all students at once</span>
+        <button class="btn btn-xs btn-green" style="margin-left:auto" onclick="globalUnlockAll()">🔓 Unlock All</button>
+        <button class="btn btn-xs btn-red" onclick="globalLockAll()">🔒 Lock All</button>
+      </div>
+      <p style="font-size:12px;color:var(--txt3);margin:8px 0 12px">Globally locking a lesson prevents ALL students from advancing to it — even if they finished the previous one. Individual overrides below can still unlock it for specific students.</p>
+      <div class="lock-grid">${globalRow}</div>
+    </div>
+    <div class="scard">
+      <div class="scard-ttl">👤 Per-Student Overrides</div>
+      <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">Click any pill to toggle. Green = student can access. Red = student is blocked.</p>
+      <input class="inp" placeholder="Search students…" oninput="filterLockRows(this.value)" style="max-width:320px;margin-bottom:10px">
+      <div id="stuLockRows">${stuRows}</div>
+    </div>`;
+};
+
+window.filterLockRows = function(q) {
+  document.querySelectorAll('.lock-row').forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+};
+
+window.toggleGlobalLock = async function(li, locked) {
+  const lbl = document.getElementById('glock-'+li);
+  try {
+    if (locked) {
+      await fbSet(`lessonLocks/global/L${li}`, true);
+      _globalLocks[`L${li}`] = true;
+      logAct(`Admin globally locked Lesson ${li+1}`, 'r');
+    } else {
+      await fbDel(`lessonLocks/global/L${li}`);
+      delete _globalLocks[`L${li}`];
+      logAct(`Admin globally unlocked Lesson ${li+1}`, 'g');
+    }
+    toast(`Lesson ${li+1} ${locked?'locked 🔒':'unlocked 🔓'} globally.`);
+    renderAdm(); // re-render to update pills
+  } catch(e) { toast('Could not update lock — check connection.','err'); }
+};
+
+window.toggleStuLessonLock = async function(uid, li, currentState) {
+  const s = findUser(uid); if (!s) return;
+  const globalLocked = isGloballyLocked(li);
+  let newOverride;
+  // Cycle: if currently open (unlocked) → lock; if locked → unlock (override)
+  if (currentState === 'unlocked') {
+    newOverride = 'lock';
+  } else {
+    // Was locked (by global or explicit lock) → set per-student unlock
+    newOverride = 'unlock';
+  }
+  try {
+    if (newOverride === 'unlock' && !globalLocked) {
+      // No need for override if globally unlocked already — remove it
+      await fbDel(`lessonLocks/students/${uid}/L${li}`);
+    } else {
+      await fbSet(`lessonLocks/students/${uid}/L${li}`, newOverride);
+    }
+    if (!_stuOverrides[uid]) _stuOverrides[uid] = {};
+    if (newOverride === 'unlock' && !globalLocked) {
+      delete _stuOverrides[uid][`L${li}`];
+    } else {
+      _stuOverrides[uid][`L${li}`] = newOverride;
+    }
+    toast(`${Security.esc(s.name)} — L${li+1} ${newOverride==='lock'?'locked 🔒':'unlocked 🔓'}.`);
+    logAct(`Admin ${newOverride}ed Lesson ${li+1} for "${Security.esc(s.name)}"`, newOverride==='lock'?'r':'g');
+    renderAdm();
+  } catch(e) { toast('Could not save — check connection.','err'); }
+};
+
+window.globalUnlockAll = async function() {
+  if (!confirm('Unlock all 5 lessons globally?')) return;
+  await fbDel('lessonLocks/global');
+  _globalLocks = {};
+  toast('All lessons unlocked globally 🔓'); logAct('Admin globally unlocked all lessons','g'); renderAdm();
+};
+
+window.globalLockAll = async function() {
+  if (!confirm('Lock ALL lessons globally? All students will be blocked from progressing.')) return;
+  const updates = {};
+  [0,1,2,3,4].forEach(li => { updates[`L${li}`] = true; });
+  await fbSet('lessonLocks/global', updates);
+  _globalLocks = { L0:true,L1:true,L2:true,L3:true,L4:true };
+  toast('All lessons locked globally 🔒','warn'); logAct('Admin globally locked all lessons','r'); renderAdm();
+};
+
+/* ── Patch nav() to respect locks ── */
+const _origNav = window.nav;
+window.nav = function(dir) {
+  if (!requireSession()) return;
+  const ni = curLI + dir;
+  if (ni < 0 || ni >= LESSONS.length) return;
+  if (!getProg().unlocked.includes(ni)) { toast('Complete the current lesson first.','warn'); return; }
+  if (checkLockBeforeNav(ni)) { toast('🔒 This lesson is currently locked by the instructor.','warn'); return; }
+  loadLesson(ni);
+};
+
+/* ── Patch renderSB to show lock badges on sidebar ── */
+const _origRenderSB = typeof renderSB !== 'undefined' ? renderSB : null;
+
+
+/* ═══════════════════════════════════════════════════════
+   DETAILED REPORTS
+   Includes: last login, per-lesson progress, exercises,
+   areas excelled, areas of improvement, activity trends.
+═══════════════════════════════════════════════════════ */
+
+const LESSON_NAMES = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
+const LESSON_EX_COUNTS = [3, 4, 5, 4, 15]; // exercises per lesson from LESSONS array
+
+function buildStudentReport(s) {
+  const p = normalizeProgress(s.progress);
+  const comp  = p.completed || [];
+  const exR   = p.exResults || {};
+  const lastAccess = p.lastAccess ? new Date(p.lastAccess) : null;
+  const now   = new Date();
+
+  // — Overall metrics
+  const lessDone   = comp.filter(x => x < 4).length;
+  const totalLessons = 4;
+  const overallPct = Math.round((lessDone + (p.practisePassed?1:0)) / 5 * 100);
+  const daysSince  = lastAccess ? Math.floor((now - lastAccess) / 864e5) : null;
+
+  // — Per-lesson exercise scores
+  const lessonStats = LESSON_NAMES.map((name, li) => {
+    const cnt = LESSON_EX_COUNTS[li];
+    let done = 0;
+    for (let j=0; j<cnt; j++) {
+      if (exR[`${li}_${j}`] === true) done++;
+    }
+    const pct = cnt > 0 ? Math.round(done/cnt*100) : 0;
+    const isDone = comp.includes(li);
+    return { li, name, cnt, done, pct, isDone };
+  });
+
+  // — Practise details
+  const pracScore   = p.practiseScore != null ? Math.round(p.practiseScore*100) : null;
+  const pracPassed  = p.practisePassed;
+  const pracDone    = lessonStats[4].done;
+  const pracTotal   = 15;
+
+  // — Areas excelled (lessons with 100% exercises)
+  const excelled = lessonStats.filter(l => l.pct === 100 && l.cnt > 0);
+
+  // — Areas of improvement (lessons started but < 80%)
+  const improvement = lessonStats.filter(l => l.done > 0 && l.pct < 80);
+
+  // — Not started
+  const notStarted = lessonStats.filter(l => l.done === 0 && !l.isDone);
+
+  // — Activity status
+  let actStatus, actClass;
+  if (!lastAccess) { actStatus = 'Not yet logged in'; actClass = 'warn'; }
+  else if (daysSince === 0) { actStatus = 'Active today'; actClass = 'good'; }
+  else if (daysSince <= 3) { actStatus = `Active ${daysSince}d ago`; actClass = 'good'; }
+  else if (daysSince <= 7) { actStatus = `Inactive ${daysSince}d`; actClass = 'imp'; }
+  else { actStatus = `Inactive ${daysSince}d`; actClass = 'warn'; }
+
+  // — Lesson access lock info
+  let lockInfo = '';
+  [0,1,2,3,4].forEach(li => {
+    if (isLessonLockedForStudent(s.uid, li)) {
+      lockInfo += `<span class="badge badge-red" style="font-size:9px">L${li+1} Locked</span> `;
+    }
+  });
+
+  return `
+  <div class="rpt-card">
+    <div class="rpt-head">
+      <div>
+        <div class="rpt-ttl">${Security.esc(s.name)}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px">@${Security.esc(s.username)} &nbsp;·&nbsp;
+          ${s.active!==false?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}
+          &nbsp;<span class="rpt-insight ${actClass}" style="display:inline;padding:1px 6px;border:none;font-size:11px">${actStatus}</span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:24px;font-weight:900;color:var(--amber)">${overallPct}%</div>
+        <div style="font-size:10px;color:var(--txt3)">Overall</div>
+      </div>
+    </div>
+
+    <div class="rpt-metrics">
+      <div class="rpt-metric">
+        <div class="rpt-metric-val">${lessDone}/${totalLessons}</div>
+        <div class="rpt-metric-lbl">Lessons Done</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val">${pracScore !== null ? pracScore+'%' : '—'}</div>
+        <div class="rpt-metric-lbl">Practise Score</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val">${pracPassed ? '🏆' : pracScore !== null ? '⚠' : '—'}</div>
+        <div class="rpt-metric-lbl">${pracPassed ? 'Certified' : pracScore !== null ? 'Not Passed' : 'Not Attempted'}</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val" style="font-size:13px">${lastAccess ? lastAccess.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—'}</div>
+        <div class="rpt-metric-lbl">Last Login</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val" style="font-size:13px">${lastAccess ? lastAccess.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—'}</div>
+        <div class="rpt-metric-lbl">Login Time</div>
+      </div>
+    </div>
+
+    ${lockInfo ? `<div style="margin-bottom:10px">${lockInfo}</div>` : ''}
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);margin-bottom:7px">Lesson Progress</div>
+    ${lessonStats.map(l => `
+    <div class="rpt-lesson-row">
+      <div style="width:130px;font-size:12px;color:var(--txt)">L${l.li+1}: ${Security.esc(l.name)}</div>
+      <div class="rpt-ex-bar"><div class="rpt-ex-fill" style="width:${l.pct}%"></div></div>
+      <div style="width:70px;text-align:right;font-size:11px;color:var(--txt3)">${l.done}/${l.cnt} ex</div>
+      <div style="width:50px;text-align:right;font-size:11.5px;font-weight:700;color:${l.pct===100?'var(--green)':l.pct>0?'var(--amber)':'var(--txt4)'}">${l.pct}%</div>
+      <div style="width:90px;text-align:right">${l.isDone?'<span class="badge badge-green">✓ Done</span>':l.done>0?'<span class="badge badge-blue">In Progress</span>':'<span style="font-size:10px;color:var(--txt4)">Not started</span>'}</div>
+    </div>`).join('')}
+
+    ${excelled.length ? `
+    <div class="rpt-insight good" style="margin-top:10px">
+      <strong>⭐ Areas Excelled:</strong> ${excelled.map(l=>`${Security.esc(l.name)} (100%)`).join(', ')}
+    </div>` : ''}
+
+    ${improvement.length ? `
+    <div class="rpt-insight imp">
+      <strong>📈 Areas for Improvement:</strong> ${improvement.map(l=>`${Security.esc(l.name)} (${l.pct}%)`).join(', ')}
+      — These lessons have exercises the student hasn't completed yet.
+    </div>` : ''}
+
+    ${notStarted.length && lessDone < 4 ? `
+    <div class="rpt-insight warn">
+      <strong>⏳ Not Yet Started:</strong> ${notStarted.map(l=>Security.esc(l.name)).join(', ')}
+    </div>` : ''}
+
+    ${!p.lastAccess ? `
+    <div class="rpt-insight warn">
+      <strong>⚠ Engagement:</strong> This student has not logged in yet.
+    </div>` : ''}
+
+    ${pracScore !== null && !pracPassed ? `
+    <div class="rpt-insight imp">
+      <strong>📝 Practise Attempt:</strong> Scored ${pracScore}% — needs 100% to earn a certificate. ${pracScore >= 60 ? 'Close — encourage another attempt.' : 'Review lessons before retrying.'}
+    </div>` : ''}
+
+    ${pracPassed ? `
+    <div class="rpt-insight good">
+      <strong>🏆 Certificate Earned:</strong> This student achieved 100% on the Practise assessment and qualifies for a certificate.
+    </div>` : ''}
+  </div>`;
+}
+
+/* ── Admin Reports section ── */
+window.admReports = function(body) {
+  const students = getStudents();
+  const now = new Date();
+
+  // Aggregate stats
+  const totalStus    = students.length;
+  const certified    = students.filter(s => s.progress?.practisePassed).length;
+  const inProgress   = students.filter(s => s.progress?.lastAccess && !s.progress?.practisePassed).length;
+  const notStarted   = students.filter(s => !s.progress?.lastAccess).length;
+  const avgPct       = students.length ? Math.round(students.reduce((sum,s) => {
+    const p=s.progress||{}; const comp=p.completed||[];
+    return sum + (comp.filter(x=>x<4).length+(p.practisePassed?1:0))/5*100;
+  }, 0) / students.length) : 0;
+
+  // Top performers
+  const top = [...students].sort((a,b)=>{
+    const pa=a.progress||{}, pb=b.progress||{};
+    const sa=(pa.completed||[]).filter(x=>x<4).length+(pa.practisePassed?1:0);
+    const sb=(pb.completed||[]).filter(x=>x<4).length+(pb.practisePassed?1:0);
+    return sb-sa;
+  }).slice(0,5);
+
+  // Recent activity (last 7 days)
+  const sevenDaysAgo = now - 7*864e5;
+  const recentlyActive = students.filter(s => s.progress?.lastAccess && new Date(s.progress.lastAccess) > sevenDaysAgo);
+
+  const stuTableRows = students.map((s,i) => {
+    const p = s.progress||{};
+    const comp = p.completed||[];
+    const lessDone = comp.filter(x=>x<4).length;
+    const pct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
+    const last = p.lastAccess ? new Date(p.lastAccess).toLocaleDateString('en-GB') : '—';
+    const lastTime = p.lastAccess ? new Date(p.lastAccess).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '';
+    const pracScore = p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'—';
+    const status = p.practisePassed?'<span class="badge badge-green">✅ Certified</span>'
+                 : p.lastAccess?'<span class="badge badge-blue">In Progress</span>'
+                 : '<span style="color:var(--txt4);font-size:10px">Not Started</span>';
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong>${Security.esc(s.name)}</strong></td>
+      <td style="font-family:var(--mono);font-size:11px">${Security.esc(s.username)}</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:5px;background:var(--bg5);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--amber),var(--green))"></div></div><span style="font-size:11px;color:var(--txt3)">${pct}%</span></div></td>
+      <td>${[0,1,2,3].map(li=>`<span class="badge ${comp.includes(li)?'badge-green':'badge-red'}" style="font-size:8px">L${li+1}</span>`).join(' ')}</td>
+      <td style="font-size:11px">${pracScore}</td>
+      <td style="font-size:11px">${Security.esc(last)} ${lastTime?`<span style="color:var(--txt4)">${lastTime}</span>`:''}</td>
+      <td>${status}</td>
+      <td><button class="btn btn-xs btn-blue" onclick="viewStudentReport('${Security.esc(s.uid)}')">📋 Full Report</button></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
+      ${[
+        {v:totalStus,l:'Total Students',c:'var(--blue)'},
+        {v:certified+'',l:'Certified',c:'var(--green)'},
+        {v:inProgress+'',l:'In Progress',c:'var(--amber)'},
+        {v:notStarted+'',l:'Not Started',c:'var(--red)'},
+        {v:recentlyActive.length+'',l:'Active (7d)',c:'var(--purple)'},
+        {v:avgPct+'%',l:'Avg Progress',c:'var(--amber)'},
+      ].map(m=>`<div class="rpt-metric"><div class="rpt-metric-val" style="color:${m.c}">${m.v}</div><div class="rpt-metric-lbl">${m.l}</div></div>`).join('')}
+    </div>
+
+    <div class="scard">
+      <div class="scard-ttl">📊 All Students — Summary Report
+        <button class="btn btn-xs btn-green" style="margin-left:auto" onclick="exportAllReportsCSV()">📥 Export CSV</button>
+        <button class="btn btn-xs btn-blue" onclick="exportAllReportsPDF()">📄 Export PDF</button>
+      </div>
+      <div class="rpt-tbl-wrap">
+      <table class="dt">
+        <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Progress</th><th>Lessons</th><th>Practise</th><th>Last Login</th><th>Status</th><th>Report</th></tr></thead>
+        <tbody>${stuTableRows}</tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="scard">
+      <div class="scard-ttl">🏆 Top Performers</div>
+      ${top.map((s,i)=>{
+        const p=s.progress||{};const comp=p.completed||[];
+        const pct=Math.round(((comp.filter(x=>x<4).length+(p.practisePassed?1:0))/5)*100);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+          <div style="width:20px;font-weight:800;color:var(--amber)">#${i+1}</div>
+          <div style="flex:1;font-size:12.5px;font-weight:600">${Security.esc(s.name)}</div>
+          <div style="font-size:12px;color:var(--txt3)">${pct}%</div>
+          ${p.practisePassed?'<span class="badge badge-amber">🏆</span>':''}
+        </div>`;
+      }).join('')}
+    </div>`;
+};
+
+window.viewStudentReport = function(uid) {
+  const s = findUser(uid); if (!s) return;
+  const ttl = document.getElementById('mReportName'); if(ttl) ttl.textContent = s.name;
+  const body = document.getElementById('mReportBody'); if(!body) return;
+  body.innerHTML = buildStudentReport(s);
+  // store uid for PDF export
+  body.dataset.uid = uid;
+  openM('mStudentReport');
+};
+
+window.exportReportPDF = function() {
+  const body = document.getElementById('mReportBody'); if(!body) return;
+  const uid = body.dataset.uid;
+  const s = findUser(uid); if (!s) return;
+  const p = normalizeProgress(s.progress);
+  const comp = p.completed||[];
+  const lessDone = comp.filter(x=>x<4).length;
+  const pct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W=210, H=297, mar=16;
+  let y=mar;
+
+  // Header bar
+  doc.setFillColor(14,17,23); doc.rect(0,0,W,28,'F');
+  doc.setFillColor(245,166,35); doc.rect(0,25,W,1.2,'F');
+  doc.setTextColor(245,166,35); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text('Code Club — Student Report', W/2, 12, {align:'center'});
+  doc.setTextColor(143,163,188); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, W/2, 20, {align:'center'});
+  y = 36;
+
+  // Student info box
+  doc.setFillColor(22,27,36); doc.roundedRect(mar, y, W-mar*2, 28, 3, 3, 'F');
+  doc.setDrawColor(46,58,78); doc.setLineWidth(0.3); doc.roundedRect(mar, y, W-mar*2, 28, 3, 3, 'S');
+  doc.setTextColor(220,232,245); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text(s.name, mar+8, y+10);
+  doc.setTextColor(143,163,188); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text(`Username: ${s.username}   |   Status: ${s.active!==false?'Active':'Inactive'}`, mar+8, y+18);
+  const lastStr = p.lastAccess ? new Date(p.lastAccess).toLocaleString('en-GB') : 'Never';
+  doc.text(`Last Login: ${lastStr}   |   Overall: ${pct}%`, mar+8, y+24);
+  y += 34;
+
+  // Progress table
+  doc.setTextColor(245,166,35); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('Lesson Progress', mar, y); y+=6;
+  const cols = ['Lesson','Exercises Done','Score','Status'];
+  const colW = [(W-mar*2)*0.4,(W-mar*2)*0.25,(W-mar*2)*0.15,(W-mar*2)*0.2];
+  let cx = mar;
+  doc.setFillColor(22,27,36); doc.rect(mar, y, W-mar*2, 7, 'F');
+  doc.setTextColor(91,156,246); doc.setFontSize(8); doc.setFont('helvetica','bold');
+  cols.forEach((col,i) => { doc.text(col, cx+2, y+5); cx+=colW[i]; });
+  y+=7;
+
+  LESSON_NAMES.forEach((name, li) => {
+    const cnt = LESSON_EX_COUNTS[li];
+    let done=0;
+    for(let j=0;j<cnt;j++) if(p.exResults&&p.exResults[`${li}_${j}`]) done++;
+    const epct = cnt>0?Math.round(done/cnt*100):0;
+    const isDone = comp.includes(li);
+    const rowBg = li%2===0?[24,32,44]:[20,27,38];
+    doc.setFillColor(...rowBg); doc.rect(mar, y, W-mar*2, 6.5, 'F');
+    let rx=mar;
+    doc.setTextColor(220,232,245); doc.setFontSize(8); doc.setFont('helvetica','normal');
+    doc.text(`L${li+1}: ${name}`, rx+2, y+4.5); rx+=colW[0];
+    doc.text(`${done} / ${cnt}`, rx+2, y+4.5); rx+=colW[1];
+    doc.setTextColor(epct===100?[62,207,110]:epct>0?[245,166,35]:[90,112,144]);
+    doc.text(`${epct}%`, rx+2, y+4.5); rx+=colW[2];
+    doc.setTextColor(isDone?[62,207,110]:done>0?[91,156,246]:[90,112,144]);
+    doc.text(isDone?'Complete':done>0?'In Progress':'Not Started', rx+2, y+4.5);
+    y+=6.5;
+  });
+  y+=6;
+
+  // Insights
+  doc.setTextColor(245,166,35); doc.setFontSize(10); doc.setFont('helvetica','bold');
+  doc.text('Report Insights', mar, y); y+=6;
+
+  const lessonStats2 = LESSON_NAMES.map((nm,li)=>{
+    const cnt=LESSON_EX_COUNTS[li]; let done=0;
+    for(let j=0;j<cnt;j++) if(p.exResults&&p.exResults[`${li}_${j}`]) done++;
+    return {li,nm,cnt,done,pct:cnt>0?Math.round(done/cnt*100):0,isDone:comp.includes(li)};
+  });
+  const excelled = lessonStats2.filter(l=>l.pct===100&&l.cnt>0);
+  const improvements = lessonStats2.filter(l=>l.done>0&&l.pct<80);
+
+  const insights = [];
+  if (excelled.length) insights.push({c:[62,207,110], t:`Areas Excelled: ${excelled.map(l=>l.nm).join(', ')}`});
+  if (improvements.length) insights.push({c:[245,166,35], t:`For Improvement: ${improvements.map(l=>`${l.nm} (${l.pct}%)`).join(', ')}`});
+  if (p.practisePassed) insights.push({c:[62,207,110], t:'Certificate Earned: Achieved 100% on the Practise assessment.'});
+  else if (p.practiseScore!=null) insights.push({c:[245,85,90], t:`Practise Score: ${Math.round(p.practiseScore*100)}% — needs 100% to earn certificate.`});
+  if (!p.lastAccess) insights.push({c:[245,85,90], t:'Engagement: Student has not logged in yet.'});
+
+  insights.forEach(ins => {
+    if (y > H-25) { doc.addPage(); y=mar; }
+    doc.setFillColor(...ins.c.map(v=>Math.round(v*0.15+5))); doc.roundedRect(mar,y,W-mar*2,8,2,2,'F');
+    doc.setDrawColor(...ins.c); doc.setLineWidth(0.5); doc.line(mar,y,mar,y+8);
+    doc.setTextColor(...ins.c); doc.setFontSize(8); doc.setFont('helvetica','bold');
+    doc.text(ins.t, mar+4, y+5.5, {maxWidth:W-mar*2-8});
+    y+=10;
+  });
+
+  // Footer
+  doc.setFillColor(14,17,23); doc.rect(0,H-12,W,12,'F');
+  doc.setTextColor(90,112,144); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('Code Club · SQL Fundamentals · Confidential Student Report', W/2, H-6, {align:'center'});
+
+  doc.save(`Report_${s.name.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`);
+  toast('Report PDF downloaded 📋');
+};
+
+window.exportAllReportsCSV = function() {
+  const rows=[['Name','Username','Status','Last Login','Last Login Time','L1','L2','L3','L4','Lessons Done','Practise Score','Certified','Overall%']];
+  getStudents().forEach(s=>{
+    const p=s.progress||{}; const comp=p.completed||[];
+    const lastD=p.lastAccess?new Date(p.lastAccess).toLocaleDateString('en-GB'):'Never';
+    const lastT=p.lastAccess?new Date(p.lastAccess).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'';
+    const lessDone=comp.filter(x=>x<4).length;
+    const pct=Math.round((lessDone+(p.practisePassed?1:0))/5*100);
+    rows.push([s.name,s.username,s.active!==false?'Active':'Inactive',lastD,lastT,
+      ...[0,1,2,3].map(li=>comp.includes(li)?'Yes':'No'),
+      lessDone+'/4', p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'0%',
+      p.practisePassed?'Yes':'No', pct+'%']);
+  });
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\r\n');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`codeclub_full_report_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  toast('Full class report exported 📥');
+};
+
+window.exportAllReportsPDF = function() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'mm', format:'a4' });
+  const W=297, H=210, mar=12;
+  let y=mar;
+
+  doc.setFillColor(14,17,23); doc.rect(0,0,W,24,'F');
+  doc.setFillColor(245,166,35); doc.rect(0,22,W,1,'F');
+  doc.setTextColor(245,166,35); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text('Code Club — Full Class Progress Report', W/2, 11, {align:'center'});
+  doc.setTextColor(143,163,188); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text(`Generated: ${new Date().toLocaleString('en-GB')} · SQL Fundamentals`, W/2, 19, {align:'center'});
+  y=30;
+
+  const colWidths=[52,28,20,15,15,15,15,20,20,22];
+  const headers=['Name','Username','Last Login','L1','L2','L3','L4','Practise','Overall','Status'];
+  doc.setFillColor(22,27,36); doc.rect(mar,y,W-mar*2,7,'F');
+  doc.setTextColor(91,156,246); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  let cx=mar;
+  headers.forEach((h,i)=>{ doc.text(h,cx+1,y+5); cx+=colWidths[i]; });
+  y+=7;
+
+  getStudents().forEach((s,ri)=>{
+    if(y>H-18){doc.addPage();y=mar+4;}
+    const p=s.progress||{}; const comp=p.completed||[];
+    const lessDone=comp.filter(x=>x<4).length;
+    const pct=Math.round((lessDone+(p.practisePassed?1:0))/5*100);
+    const lastD=p.lastAccess?new Date(p.lastAccess).toLocaleDateString('en-GB'):'—';
+    const pracStr=p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'—';
+    const status=p.practisePassed?'Certified':p.lastAccess?'In Progress':'Not Started';
+    const rowBg=ri%2===0?[24,32,44]:[20,27,38];
+    doc.setFillColor(...rowBg); doc.rect(mar,y,W-mar*2,6,'F');
+    cx=mar;
+    const vals=[s.name,s.username,lastD,...[0,1,2,3].map(li=>comp.includes(li)?'✓':'✗'),pracStr,pct+'%',status];
+    doc.setFont('helvetica','normal'); doc.setFontSize(7.5);
+    vals.forEach((v,i)=>{
+      const col=typeof v==='string'&&(v==='✓')?[62,207,110]:v==='✗'?[245,85,90]:[220,232,245];
+      doc.setTextColor(...col);
+      doc.text(String(v),cx+1,y+4.2,{maxWidth:colWidths[i]-2}); cx+=colWidths[i];
+    });
+    y+=6;
+  });
+
+  doc.setFillColor(14,17,23); doc.rect(0,H-10,W,10,'F');
+  doc.setTextColor(90,112,144); doc.setFontSize(7); doc.setFont('helvetica','normal');
+  doc.text('Code Club · SQL Fundamentals · Class Report · Confidential',W/2,H-4,{align:'center'});
+  doc.save(`CodeClub_ClassReport_${new Date().toISOString().slice(0,10)}.pdf`);
+  toast('Class report PDF exported 📄');
+};
+
+
+window.openLessonAccess = function(uid) {
+  const s = findUser(uid); if (!s) return;
+  const ttl = document.getElementById('mLessonAccessName'); if(ttl) ttl.textContent = s.name;
+  const body = document.getElementById('mLessonAccessBody'); if(!body) return;
+  body.dataset.uid = uid;
+
+  const lessons = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
+  let html = '<div style="margin-bottom:10px;font-size:12px;color:var(--txt3)">Toggle each lesson — green = student can access, red = blocked for this student. Global locks are shown separately.</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  lessons.forEach((lbl, li) => {
+    const ov = (_stuOverrides[uid]||{})[`L${li}`];
+    const globalLocked = isGloballyLocked(li);
+    let checked, stateLabel, hint;
+    if (ov === 'unlock') { checked = true; stateLabel = '🔓 Unlocked (override)'; hint='You explicitly unlocked this for this student.'; }
+    else if (ov === 'lock') { checked = false; stateLabel = '🔒 Locked (override)'; hint='You explicitly locked this for this student.'; }
+    else if (globalLocked) { checked = false; stateLabel = '🌍 Globally Locked'; hint='Locked for all students. Unlock globally or use override.'; }
+    else { checked = true; stateLabel = '✅ Open'; hint='Available based on global settings.'; }
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--r);background:var(--bg3);border:1.5px solid ${checked?'rgba(62,207,110,.2)':'rgba(245,85,90,.2)'}">
+      <div style="flex:1">
+        <div style="font-size:12.5px;font-weight:700;color:var(--txt)">L${li+1}: ${Security.esc(lbl)}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px">${stateLabel} — ${hint}</div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:${checked?'var(--green)':'var(--red)'}">
+        <input type="checkbox" id="lav-${li}" ${checked?'checked':''} style="width:16px;height:16px;accent-color:var(--amber)">
+        ${checked?'Allow':'Blocked'}
+      </label>
+    </div>`;
+  });
+  html += '</div>';
+  body.innerHTML = html;
+  openM('mLessonAccess');
+};
+
+window.saveLessonAccess = async function() {
+  const body = document.getElementById('mLessonAccessBody'); if(!body) return;
+  const uid = body.dataset.uid;
+  const s = findUser(uid); if (!s) return;
+  const lessons = 5;
+  const updates = {};
+  for (let li=0; li<lessons; li++) {
+    const cb = document.getElementById(`lav-${li}`);
+    if (!cb) continue;
+    const want = cb.checked; // true=accessible, false=blocked
+    const globalLocked = isGloballyLocked(li);
+    if (want) {
+      // Student should have access
+      if (globalLocked) {
+        updates[`students/${uid}/L${li}`] = 'unlock'; // per-student override
+      } else {
+        // No override needed — remove any existing lock override
+        updates[`students/${uid}/L${li}`] = null;
+      }
+    } else {
+      // Student should be blocked
+      updates[`students/${uid}/L${li}`] = 'lock';
+    }
+  }
+  try {
+    for (const [path, val] of Object.entries(updates)) {
+      if (val === null) { await fbDel(`lessonLocks/${path}`); if(_stuOverrides[uid]) delete _stuOverrides[uid][path.split('/').pop()]; }
+      else { await fbSet(`lessonLocks/${path}`, val); if(!_stuOverrides[uid]) _stuOverrides[uid]={}; _stuOverrides[uid][path.split('/').pop()] = val; }
+    }
+    closeM('mLessonAccess');
+    toast(`Lesson access saved for ${Security.esc(s.name)} ✓`);
+    logAct(`Admin updated lesson access for "${Security.esc(s.name)}"`, 'b');
+    renderAdm();
+  } catch(e) { toast('Could not save — check connection.', 'err'); }
+};
+
 /* ═══════════════════════════════════════════════════════
    MODAL HELPERS
 ═══════════════════════════════════════════════════════ */
@@ -3415,6 +4185,8 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
       showPg('pg-admin');
       startAdminLiveSync();  // fires fbSub immediately which calls renderAdm()
     startActLogSync();     // live activity log listener
+    startLockSync();       // lesson lock state sync
+    startLockSync();       // lesson lock state sync
     } else {
       // Use saved data to start the app instantly, then Firebase live sync
       // will update the cache and re-render once it arrives.
