@@ -1029,10 +1029,12 @@ async function seedIfEmpty() {
     const repairs = {};
     DEFAULT_USERS.forEach(u => {
       const rec = existing[u.uid];
-      if (!rec || !rec.role || !rec.username) {
+      // Only repair records that exist but are corrupt (missing role/username).
+      // If rec is absent the user was intentionally deleted — never re-create them.
+      if (rec && (!rec.role || !rec.username)) {
         const entry = { ...u };
         if (u.role === 'student')
-          entry.progress = rec && rec.progress ? normalizeProgress(rec.progress) : dp();
+          entry.progress = rec.progress ? normalizeProgress(rec.progress) : dp();
         repairs[u.uid] = entry;
       }
     });
@@ -3592,7 +3594,7 @@ function parseAndPreviewCSV(raw) {
     const rowErr=[];
     if(!rn) rowErr.push('Name is empty');
     if(!ru) rowErr.push('Username is empty');
-    else if(!/^[a-z0-9._-]+$/.test(ru)) rowErr.push(`Username "${Security.esc(ru)}" has invalid characters`);
+    else if(!/^[a-z0-9._%+@-]+$/.test(ru)) rowErr.push(`Username "${Security.esc(ru)}" has invalid characters (letters, numbers, . _ % + - @ are allowed)`);
     if(!rp) rowErr.push('Password is empty');
     else if(rp.length<4) rowErr.push('Password too short (min 4 chars)');
     if(rowErr.length){errors.push(`Row ${i}: ${rowErr.join('; ')}`);continue;}
