@@ -3433,6 +3433,7 @@ window.bulkUnlock = async function() {
   }));
   toast(`Lessons unlocked for ${uids.length} student(s).`);
   logAct(`Admin bulk-unlocked lessons for ${uids.length} student(s)`, 'b');
+  clearSelection();
 };
 
 window.bulkReset = async function() {
@@ -3441,6 +3442,7 @@ window.bulkReset = async function() {
   await Promise.all(uids.map(uid=>fbSet(`users/${uid}/progress`, dp())));
   toast(`Progress reset for ${uids.length} student(s).`, 'warn');
   logAct(`Admin bulk-reset progress for ${uids.length} student(s)`, 'r');
+  clearSelection();
 };
 
 window.bulkDelete = async function() {
@@ -3450,6 +3452,7 @@ window.bulkDelete = async function() {
   await Promise.all(uids.map(uid=>fbDel(`users/${uid}`)));
   toast(`${uids.length} student(s) deleted.`, 'warn');
   logAct(`Admin bulk-deleted ${uids.length} student(s)`, 'r');
+  clearSelection();
 };
 
 window.bulkToggleActive = async function() {
@@ -3461,6 +3464,7 @@ window.bulkToggleActive = async function() {
   await Promise.all(uids.map(uid=>fbUpd(`users/${uid}`, { active:makeActive })));
   toast(`${uids.length} student(s) ${action}d.`);
   logAct(`Admin ${action}d ${uids.length} student(s)`, makeActive?'g':'');
+  clearSelection();
 };
 
 window.bulkExport = function() {
@@ -3503,6 +3507,7 @@ window.doBulkPassReset = async function() {
   closeM('mBulkPass');
   toast(`Password reset for ${uids.length} student(s).`);
   logAct(`Admin bulk-reset passwords for ${uids.length} student(s)`, 'b');
+  clearSelection();
 };
 
 window.unlkAllStus = async function() {
