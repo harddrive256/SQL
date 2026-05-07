@@ -1370,17 +1370,38 @@ function startActLogSync() {
   if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe = null; }
   _actLogCache = [];
   const ref = fbRef('actLog');
-  const handler = ref.on('child_added', snap => {
-    const entry = snap.val(); if (!entry) return;
-    _actLogCache.unshift(entry);
-    if (_actLogCache.length > 100) _actLogCache.pop();
+  // Step 1: load ALL existing entries at once (newest-first via ts sort then reverse)
+  ref.once('value', snap => {
+    if (snap.exists()) {
+      const obj = snap.val();
+      // Convert to array, sort by timestamp ascending, then reverse so newest is first
+      const all = Object.values(obj).filter(Boolean);
+      all.sort((a, b) => (a.ts || 0) - (b.ts || 0));
+      _actLogCache = all.reverse().slice(0, 200);
+    }
+    // Refresh UI with historical entries
     const adminActive = document.getElementById('pg-admin').classList.contains('active');
     if (adminActive && curUser && curUser.isAdmin) {
       if (admSec2 === 'overview') _refreshOverviewLogs();
       else if (admSec2 === 'logs') _refreshLogsPanel();
     }
-  }, e => console.error('[HPSchool] actLog error:', e));
-  _actLogUnsubscribe = () => ref.off('child_added', handler);
+    // Step 2: now listen for genuinely new entries added after this point
+    const lastKey = _actLogCache.length ? _actLogCache[0]._key : null;
+    const newRef = lastKey ? ref.orderByKey().startAfter(lastKey) : ref.limitToLast(1).startAfter(null);
+    const handler = ref.on('child_added', snap => {
+      const entry = snap.val(); if (!entry) return;
+      // Skip entries already loaded in the initial snapshot
+      if (_actLogCache.some(e => e.ts === entry.ts && e.msg === entry.msg)) return;
+      _actLogCache.unshift(entry);
+      if (_actLogCache.length > 200) _actLogCache.pop();
+      const adm = document.getElementById('pg-admin').classList.contains('active');
+      if (adm && curUser && curUser.isAdmin) {
+        if (admSec2 === 'overview') _refreshOverviewLogs();
+        else if (admSec2 === 'logs') _refreshLogsPanel();
+      }
+    }, e => console.error('[HPSchool] actLog error:', e));
+    _actLogUnsubscribe = () => ref.off('child_added', handler);
+  }, e => console.error('[HPSchool] actLog initial load error:', e));
 }
 function _refreshOverviewLogs() {
   const el = document.getElementById('actLogBody'); if (!el) return;
@@ -3620,10 +3641,13 @@ function parseAndPreviewCSV(raw) {
 window.importCSV = async function() {
   if(!_csvParsed.length){toast('No valid students to import.','err');return;}
   if(!confirm(`Import ${_csvParsed.length} new student account(s)?`)) return;
-  await Promise.all(_csvParsed.map(row=>{
-    const uid='s'+Date.now()+Math.random().toString(36).slice(2,6);
-    return fbSet(`users/${uid}`,{uid,role:'student',name:row.name,username:row.username,password:row.password,active:true,progress:dp()});
-  }));
+  // Build all records first with guaranteed-unique UIDs, then write in one call
+  const updates = {};
+  _csvParsed.forEach((row, i) => {
+    const uid = 's' + Date.now() + '_' + i + '_' + Math.random().toString(36).slice(2, 8);
+    updates[uid] = { uid, role:'student', name:row.name, username:row.username, password:row.password, active:true, progress:dp() };
+  });
+  await fbUpd('users', updates);
   const count=_csvParsed.length;
   closeM('mCSVImport'); resetCSVModal();
   admSec2='students';
