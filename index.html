@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzMiAzMiIgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIj4KICA8cmVjdCB4PSI1IiB5PSIxMSIgd2lkdGg9IjIyIiBoZWlnaHQ9IjE0IiBmaWxsPSIjMWUyZDRhIi8+CiAgPHJlY3QgeD0iNSIgeT0iMTEiIHdpZHRoPSIyMiIgaGVpZ2h0PSIxNCIgZmlsbD0idXJsKCNiZykiLz4KICA8bGluZSB4MT0iNSIgeTE9IjExIiB4Mj0iNSIgeTI9IjI1IiBzdHJva2U9IiNmNWE2MjMiIHN0cm9rZS13aWR0aD0iMS40Ii8+CiAgPGxpbmUgeDE9IjI3IiB5MT0iMTEiIHgyPSIyNyIgeTI9IjI1IiBzdHJva2U9IiNmNWE2MjMiIHN0cm9rZS13aWR0aD0iMS40Ii8+CiAgPGVsbGlwc2UgY3g9IjE2IiBjeT0iMjUiIHJ4PSIxMSIgcnk9IjMuNSIgZmlsbD0iIzE2MjAzOCIvPgogIDxlbGxpcHNlIGN4PSIxNiIgY3k9IjI1IiByeD0iMTEiIHJ5PSIzLjUiIGZpbGw9Im5vbmUiIHN0cm9rZT0iI2Y1YTYyMyIgc3Ryb2tlLXdpZHRoPSIxLjQiLz4KICA8ZWxsaXBzZSBjeD0iMTYiIGN5PSIxOCIgcng9IjExIiByeT0iMy41IiBmaWxsPSJub25lIiBzdHJva2U9IiNmNWE2MjMiIHN0cm9rZS13aWR0aD0iMC45IiBzdHJva2UtZGFzaGFycmF5PSIyLjUsMiIgb3BhY2l0eT0iMC41NSIvPgogIDxlbGxpcHNlIGN4PSIxNiIgY3k9IjExIiByeD0iMTEiIHJ5PSIzLjUiIGZpbGw9IiMyYTRhN2YiLz4KICA8ZWxsaXBzZSBjeD0iMTYiIGN5PSIxMSIgcng9IjExIiByeT0iMy41IiBmaWxsPSJub25lIiBzdHJva2U9IiNmNWE2MjMiIHN0cm9rZS13aWR0aD0iMS42Ii8+CiAgPGVsbGlwc2UgY3g9IjEzIiBjeT0iMTAiIHJ4PSI0LjUiIHJ5PSIxLjQiIGZpbGw9IiM3ZmIzZjUiIG9wYWNpdHk9IjAuNDUiLz4KICA8ZGVmcz4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iYmciIHgxPSIwIiB5MT0iMCIgeDI9IjEiIHkyPSIwIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzBlMTExNyIgc3RvcC1vcGFjaXR5PSIwLjQiLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI1MCUiIHN0b3AtY29sb3I9IiMyYTRhN2YiIHN0b3Atb3BhY2l0eT0iMC4xNSIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwZTExMTciIHN0b3Atb3BhY2l0eT0iMC40Ii8+CiAgICA8L2xpbmVhckdyYWRpZW50PgogIDwvZGVmcz4KPC9zdmc+">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SQL Fundamentals — HP Primary School</title>
+<title>SQL Fundamentals — Code Club</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
 <style>
@@ -55,24 +55,29 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 .page.active{display:flex}
 
 /* ───────── BUTTONS ───────── */
-.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;border-radius:var(--r-sm);font-family:var(--font);font-size:12.5px;font-weight:600;border:1.5px solid var(--bdr);background:var(--bg4);color:var(--txt2);cursor:pointer;transition:var(--t);white-space:nowrap;letter-spacing:.01em}
-.btn:hover:not(:disabled){background:var(--bg5);color:var(--txt);border-color:var(--bdr2)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 15px;border-radius:var(--r);font-family:var(--font);font-size:12.5px;font-weight:600;border:1.5px solid var(--bdr);background:var(--bg4);color:var(--txt2);cursor:pointer;transition:var(--t);white-space:nowrap;letter-spacing:.01em;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:rgba(255,255,255,0);transition:background .15s}
+.btn:hover:not(:disabled)::after{background:rgba(255,255,255,.04)}
+.btn:hover:not(:disabled){background:var(--bg5);color:var(--txt);border-color:var(--bdr2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.btn:active:not(:disabled){transform:translateY(0);box-shadow:none}
 .btn:disabled{opacity:.35;cursor:not-allowed}
-.btn-amber{background:var(--amber);border-color:var(--amber);color:#fff}
-.btn-amber:hover:not(:disabled){background:var(--amber2);border-color:var(--amber2);color:#fff}
-.btn-green{background:var(--green);border-color:var(--green);color:#fff}
-.btn-green:hover:not(:disabled){filter:brightness(1.08)}
-.btn-red{background:var(--red);border-color:var(--red);color:#fff}
-.btn-red:hover:not(:disabled){filter:brightness(1.08)}
-.btn-blue{background:var(--blue);border-color:var(--blue);color:#fff}
-.btn-sm{padding:5px 10px;font-size:11.5px}
-.btn-xs{padding:3px 7px;font-size:11px}
+.btn-amber{background:linear-gradient(135deg,var(--amber),var(--amber2));border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(245,166,35,.25)}
+.btn-amber:hover:not(:disabled){background:linear-gradient(135deg,var(--amber2),#c87010);box-shadow:0 4px 16px rgba(245,166,35,.4);color:#fff}
+.btn-green{background:linear-gradient(135deg,var(--green),#2eb85a);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(62,207,110,.2)}
+.btn-green:hover:not(:disabled){filter:brightness(1.1);box-shadow:0 4px 16px rgba(62,207,110,.35);color:#fff}
+.btn-red{background:linear-gradient(135deg,var(--red),#d43a40);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(245,85,90,.2)}
+.btn-red:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 4px 14px rgba(245,85,90,.35);color:#fff}
+.btn-blue{background:linear-gradient(135deg,var(--blue),#3a7ae0);border-color:transparent;color:#fff;box-shadow:0 2px 10px rgba(91,156,246,.2)}
+.btn-blue:hover:not(:disabled){filter:brightness(1.08);box-shadow:0 4px 14px rgba(91,156,246,.35);color:#fff}
+.btn-sm{padding:5px 11px;font-size:11.5px}
+.btn-xs{padding:3px 8px;font-size:11px}
 
 /* ───────── INPUTS ───────── */
-.inp{width:100%;padding:9px 12px;border-radius:var(--r-sm);border:1.5px solid var(--bdr);background:var(--bg3);color:var(--txt);font-family:var(--font);font-size:13px;outline:none;transition:var(--t)}
-.inp:focus{border-color:var(--amber);background:var(--bg4)}
+.inp{width:100%;padding:9px 13px;border-radius:var(--r);border:1.5px solid var(--bdr);background:var(--bg3);color:var(--txt);font-family:var(--font);font-size:13px;outline:none;transition:var(--t);box-shadow:inset 0 1px 3px rgba(0,0,0,.12)}
+.inp:focus{border-color:var(--amber);background:var(--bg4);box-shadow:0 0 0 3px rgba(245,166,35,.12),inset 0 1px 3px rgba(0,0,0,.08)}
+.inp:hover:not(:focus){border-color:var(--bdr2)}
 .inp::placeholder{color:var(--txt4)}
-.inp-label{display:block;font-size:11px;font-weight:600;color:var(--txt3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.7px}
+.inp-label{display:block;font-size:10.5px;font-weight:700;color:var(--txt3);margin-bottom:5px;text-transform:uppercase;letter-spacing:.8px}
 .fg{margin-bottom:14px}
 
 /* ───────── BADGES ───────── */
@@ -91,13 +96,15 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 @keyframes toastIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
 
 /* ───────── MODALS ───────── */
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:8000;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:8000;align-items:center;justify-content:center;backdrop-filter:blur(4px);animation:overlayIn .2s ease}
 .overlay.open{display:flex}
-.modal{background:var(--bg2);border:1.5px solid var(--bdr);border-radius:var(--r-lg);padding:26px;width:90%;max-width:460px;box-shadow:var(--sh);animation:modalIn .2s ease}
-.modal-wide{max-width:680px}
-@keyframes modalIn{from{transform:scale(.95);opacity:0}to{transform:scale(1);opacity:1}}
-.modal-title{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;align-items:center;gap:8px}
-.modal-foot{margin-top:18px;display:flex;gap:7px;justify-content:flex-end}
+@keyframes overlayIn{from{opacity:0}to{opacity:1}}
+.modal{background:var(--bg2);border:1.5px solid var(--bdr);border-radius:var(--r-lg);padding:28px;width:90%;max-width:460px;box-shadow:0 24px 64px rgba(0,0,0,.6);animation:modalIn .22s cubic-bezier(.34,1.56,.64,1)}
+.modal-wide{max-width:700px}
+.modal-xl{max-width:900px}
+@keyframes modalIn{from{transform:scale(.92) translateY(10px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:9px;color:var(--txt);padding-bottom:14px;border-bottom:1.5px solid var(--bdr)}
+.modal-foot{margin-top:20px;display:flex;gap:8px;justify-content:flex-end;padding-top:14px;border-top:1.5px solid var(--bdr)}
 
 /* ═══════════════════════════════════
    LOGIN PAGE
@@ -140,7 +147,8 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 .sidebar{
   width:234px;flex-shrink:0;
   background:var(--bg2);border-right:1.5px solid var(--bdr);
-  display:flex;flex-direction:column;overflow:hidden
+  display:flex;flex-direction:column;overflow:hidden;
+  height:100vh;height:100dvh
 }
 .sb-brand{padding:16px 15px 13px;border-bottom:1.5px solid var(--bdr)}
 .sb-brand-icon{
@@ -155,7 +163,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 .sb-prog-row{display:flex;justify-content:space-between;font-size:10.5px;color:var(--txt3);margin-bottom:5px}
 .sb-bar{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
 .sb-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--amber2));border-radius:2px;transition:width .5s ease}
-.sb-nav{flex:1;overflow-y:auto;padding:6px 0}
+.sb-nav{flex:1;overflow-y:auto;padding:6px 0;min-height:0}
 .sb-section{padding:6px 15px 2px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:1.4px;color:var(--txt4)}
 .sb-item{
   display:flex;align-items:center;gap:9px;
@@ -168,7 +176,7 @@ body{font-family:var(--font);background:var(--bg);color:var(--txt);transition:ba
 .sb-item.done .sb-ck{color:var(--green)}
 .sb-ck{font-size:12px;width:15px;flex-shrink:0;text-align:center}
 .sb-lbl{flex:1;line-height:1.3}
-.sb-foot{padding:12px 15px;border-top:1.5px solid var(--bdr)}
+.sb-foot{padding:12px 15px;border-top:1.5px solid var(--bdr);flex-shrink:0}
 .sb-user{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .sb-avatar{
   width:30px;height:30px;border-radius:50%;
@@ -414,108 +422,121 @@ tr.stu-inactive td{opacity:.55}
 /* ═══════════════════════════════════════════════════
    MOBILE RESPONSIVE
 ═══════════════════════════════════════════════════ */
-
-/* Hamburger button — hidden on desktop */
 .sb-toggle{
   display:none;position:fixed;bottom:18px;right:18px;z-index:999;
   width:46px;height:46px;border-radius:50%;
   background:var(--amber);border:none;cursor:pointer;
   font-size:20px;color:#000;
   box-shadow:0 3px 12px rgba(245,166,35,.45);
-  align-items:center;justify-content:center;
-  transition:var(--t)
+  align-items:center;justify-content:center;transition:var(--t)
 }
-
 @media (max-width: 768px) {
-
-  /* ── Student app layout ── */
   #pg-app { flex-direction: column !important; }
-
   .sb-toggle { display:flex; }
-
   .sidebar {
-    position: fixed;
-    top: 0; left: 0;
-    width: 80vw; max-width: 280px;
-    height: 100vh;
-    z-index: 900;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: 4px 0 24px rgba(0,0,0,.4);
+    position:fixed;top:0;left:0;
+    width:80vw;max-width:280px;
+    z-index:900;
+    transform:translateX(-100%);
+    transition:transform 0.25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.4);
   }
-  .sidebar.open { transform: translateX(0); }
-
-  /* Overlay when sidebar is open */
+  .sidebar.open { transform:translateX(0); }
   .sb-overlay{
     display:none;position:fixed;inset:0;z-index:899;
     background:rgba(0,0,0,.45);
   }
   .sb-overlay.show { display:block; }
-
-  .main { width: 100%; flex: 1; }
-
-  /* Stack lesson panel and scratch pad vertically */
-  .split { flex-direction: column !important; overflow-y: auto; }
-
+  .main { width:100%;flex:1; }
+  .split { flex-direction:column !important;overflow-y:auto; }
   .lpanel {
-    width: 100% !important;
-    border-right: none !important;
-    border-bottom: 1.5px solid var(--bdr);
-    flex-shrink: 0;
-    max-height: none;
-    overflow: visible;
+    width:100% !important;border-right:none !important;
+    border-bottom:1.5px solid var(--bdr);
+    flex-shrink:0;max-height:none;overflow:visible;
   }
-
-  .lscroll { overflow-y: visible; }
-
-  .scratch {
-    width: 100%;
-    min-height: 320px;
-    flex-shrink: 0;
-  }
-
-  .rzr { display: none; }
-
-  .topbar { padding: 0 12px; gap: 7px; }
-  .topbar-title { font-size: 12.5px; }
-
-  /* ── Admin layout ── */
-  #pg-admin { flex-direction: column !important; }
-
+  .lscroll { overflow-y:visible; }
+  .scratch { width:100%;min-height:320px;flex-shrink:0; }
+  .rzr { display:none; }
+  .topbar { padding:0 12px;gap:7px; }
+  .topbar-title { font-size:12.5px; }
+  #pg-admin { flex-direction:column !important; }
   .adm-sb {
-    position: fixed;
-    top: 0; left: 0;
-    width: 80vw; max-width: 280px;
-    height: 100vh;
-    z-index: 900;
-    transform: translateX(-100%);
-    transition: transform 0.25s ease;
-    box-shadow: 4px 0 24px rgba(0,0,0,.4);
+    position:fixed;top:0;left:0;
+    width:80vw;max-width:280px;
+    height:100vh;height:100dvh;
+    z-index:900;
+    transform:translateX(-100%);
+    transition:transform 0.25s ease;
+    box-shadow:4px 0 24px rgba(0,0,0,.4);
   }
-  .adm-sb.open { transform: translateX(0); }
-
-  .adm-cont { width: 100%; flex: 1; }
-  .adm-topbar { padding: 0 12px; }
-  .adm-body { padding: 14px; }
-
-  /* ── Login page ── */
-  .login-card { width: 92vw !important; padding: 24px 18px !important; }
-
-  /* ── General touch sizing ── */
-  .btn { min-height: 36px; padding: 7px 13px; }
-  .btn-xs { min-height: 28px; }
-  .sb-item { padding: 11px 15px; }
-  .adm-ni { padding: 12px 15px; }
-
-  /* stat cards stack on small screens */
-  .stat-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .adm-sb.open { transform:translateX(0); }
+  .adm-cont { width:100%;flex:1; }
+  .adm-topbar { padding:0 12px; }
+  .adm-body { padding:14px; }
+  .login-card { width:92vw !important;padding:24px 18px !important; }
+  .btn { min-height:36px;padding:7px 13px; }
+  .btn-xs { min-height:28px; }
+  .sb-item { padding:11px 15px; }
+  .adm-ni { padding:12px 15px; }
+  .stat-grid { grid-template-columns:1fr 1fr !important;gap:10px !important; }
 }
-
 @media (max-width: 400px) {
-  .stat-grid { grid-template-columns: 1fr !important; }
-  .topbar-acts { gap: 4px; }
-  .topbar-acts .btn { font-size: 10px; padding: 5px 8px; }
+  .stat-grid { grid-template-columns:1fr !important; }
+  .topbar-acts .btn { font-size:10px;padding:5px 8px; }
 }
+
+/* ═══ LESSON LOCK / ADMIN ═══ */
+.lock-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-top:12px}
+.lock-card{background:var(--bg3);border:1.5px solid var(--bdr);border-radius:var(--r);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.lock-card-ttl{font-size:12px;font-weight:700;color:var(--txt)}
+.lock-card-sub{font-size:10.5px;color:var(--txt3)}
+.lock-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--txt2)}
+.lock-toggle input[type=checkbox]{width:16px;height:16px;accent-color:var(--amber);cursor:pointer}
+.lock-row{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;border-radius:var(--r-sm);background:var(--bg4);border:1px solid var(--bdr);margin-bottom:5px}
+.lock-stu-name{font-size:12.5px;font-weight:600;color:var(--txt);flex:1}
+.lock-pills{display:flex;gap:5px;flex-wrap:wrap}
+.lock-pill{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700;cursor:pointer;border:1.5px solid;transition:var(--t)}
+.lock-pill.unlocked{background:var(--greenbg);color:var(--green);border-color:rgba(62,207,110,.3)}
+.lock-pill.locked{background:var(--redbg);color:var(--red);border-color:rgba(245,85,90,.25)}
+.lock-pill:hover{opacity:.8}
+/* Report styles */
+.rpt-card{background:var(--bg3);border:1.5px solid var(--bdr);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.rpt-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.rpt-ttl{font-size:13px;font-weight:700;color:var(--txt)}
+.rpt-metric{text-align:center;padding:10px;background:var(--bg4);border-radius:var(--r-sm);border:1px solid var(--bdr)}
+.rpt-metric-val{font-size:22px;font-weight:800;color:var(--amber);line-height:1}
+.rpt-metric-lbl{font-size:9.5px;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px;margin-top:3px}
+.rpt-metrics{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;margin-bottom:12px}
+.rpt-lesson-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-sm);background:var(--bg4);border:1px solid var(--bdr);margin-bottom:5px}
+.rpt-ex-bar{flex:1;height:6px;background:var(--bg5);border-radius:3px;overflow:hidden}
+.rpt-ex-fill{height:100%;background:linear-gradient(90deg,var(--amber),var(--green));border-radius:3px}
+.rpt-badge-row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
+.rpt-insight{padding:8px 12px;border-radius:var(--r-sm);font-size:12px;color:var(--txt2);border-left:3px solid;margin-bottom:6px}
+.rpt-insight.good{border-color:var(--green);background:var(--greenbg)}
+.rpt-insight.imp{border-color:var(--amber);background:var(--amberbg)}
+.rpt-insight.warn{border-color:var(--red);background:var(--redbg)}
+/* All-student reports table */
+.rpt-tbl-wrap{overflow-x:auto}
+
+
+/* ═══ TRY IT DEMO BLOCK ═══ */
+.demo-block{margin:14px 0 4px;border:1.5px solid rgba(91,156,246,.25);border-radius:var(--r);overflow:hidden;background:var(--bg)}
+.demo-hdr{display:flex;align-items:center;gap:8px;padding:7px 12px;background:var(--bluebg);border-bottom:1.5px solid rgba(91,156,246,.2)}
+.demo-hdr-icon{font-size:14px}
+.demo-hdr-lbl{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--blue)}
+.demo-hdr-desc{font-size:11.5px;color:var(--txt2);flex:1}
+.demo-ed-wrap{display:flex;background:var(--bg);border-bottom:1.5px solid var(--bdr)}
+.demo-lnums{padding:8px 7px 8px 9px;font-family:var(--mono);font-size:11.5px;line-height:1.75;color:var(--txt4);text-align:right;min-width:32px;background:var(--bg2);border-right:1.5px solid var(--bdr);user-select:none;flex-shrink:0}
+.demo-ta{flex:1;background:transparent;border:none;outline:none;padding:8px 12px;font-family:var(--mono);font-size:11.5px;line-height:1.75;color:var(--txt);resize:none;caret-color:var(--blue);min-height:56px}
+.demo-foot{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2)}
+.demo-run-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 13px;border-radius:var(--r-sm);font-size:11.5px;font-weight:700;border:none;background:var(--blue);color:#fff;cursor:pointer;transition:var(--t);font-family:var(--font)}
+.demo-run-btn:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.demo-hint{font-size:10.5px;color:var(--txt3)}
+.demo-result{border-top:1.5px solid var(--bdr);overflow-x:auto;min-height:0;max-height:200px;overflow-y:auto;display:none}
+.demo-result.show{display:block}
+.demo-result-info{display:flex;align-items:center;gap:7px;padding:3px 10px;background:var(--bg2);border-bottom:1px solid var(--bdr)}
+.demo-result-stat{font-size:10px;padding:1px 7px;border-radius:10px;font-weight:600}
+
 </style>
 </head>
 <body>
@@ -531,7 +552,7 @@ tr.stu-inactive td{opacity:.55}
     <div class="login-card">
       <div class="login-head">
         <div class="login-icon">🏫</div>
-        <h1>HP Primary School</h1>
+        <h1>Code Club</h1>
         <p>SQL Fundamentals Course</p>
       </div>
       <div class="login-err" id="loginErr">⚠ Wrong username or password. Please try again.</div>
@@ -546,7 +567,7 @@ tr.stu-inactive td{opacity:.55}
         <div style="font-size:10.5px;color:var(--txt3);margin-top:4px" id="loginAttempts"></div>
       </div>
       <button class="btn btn-amber" style="width:100%;padding:10px;font-size:13.5px;justify-content:center" id="loginBtn" onclick="doLogin()">Sign In →</button>
-      <div class="login-footer">SQL Fundamentals · HP Primary School · 2025</div>
+      <div class="login-footer">SQL Fundamentals · Code Club · 2025</div>
     </div>
   </div>
 </div>
@@ -554,11 +575,11 @@ tr.stu-inactive td{opacity:.55}
 <!-- ══════════ APP ══════════ -->
 <div class="page" id="pg-app">
   <div class="sb-overlay" id="sbOverlay" onclick="closeSidebar()"></div>
-  <button class="sb-toggle" id="sbToggle" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+  <button class="sb-toggle" id="sbToggle" onclick="toggleSidebar()" aria-label="Menu">&#9776;</button>
   <div class="sidebar" id="sidebar">
     <div class="sb-brand">
       <div class="sb-brand-icon">🏫</div>
-      <h2>HP Primary School</h2>
+      <h2>Code Club</h2>
       <p>SQL Fundamentals</p>
     </div>
     <div class="sb-prog">
@@ -601,7 +622,7 @@ tr.stu-inactive td{opacity:.55}
       <div class="scratch">
         <div class="scratch-tabs">
           <div class="stab active">🖊 Scratch Pad</div>
-          <div class="stab" style="margin-left:auto;cursor:default;font-size:10.5px;color:var(--txt4)">HP School Database</div>
+          <div class="stab" style="margin-left:auto;cursor:default;font-size:10.5px;color:var(--txt4)">Code Club Database</div>
         </div>
         <div class="editor-zone">
           <div class="ed-toolbar">
@@ -636,14 +657,16 @@ tr.stu-inactive td{opacity:.55}
 <!-- ══════════ ADMIN ══════════ -->
 <div class="page" id="pg-admin">
   <div class="sb-overlay" id="admOverlay" onclick="closeAdmSidebar()"></div>
-  <button class="sb-toggle" id="admToggle" onclick="toggleAdmSidebar()" aria-label="Menu">☰</button>
+  <button class="sb-toggle" id="admToggle" onclick="toggleAdmSidebar()" aria-label="Menu">&#9776;</button>
   <div class="adm-sb" id="admSb">
-    <div class="adm-brand"><h2>⚙ Admin Panel</h2><p>HP Primary School</p></div>
+    <div class="adm-brand"><h2>⚙ Admin Panel</h2><p>SQL Fundamentals</p></div>
     <div class="adm-nav">
       <div class="adm-ni active" onclick="admSec('overview',this)">📊 Overview</div>
       <div class="adm-ni" onclick="admSec('students',this)">👨‍🎓 Students</div>
       <div class="adm-ni" onclick="admSec('progress',this)">📈 Progress</div>
-      <div class="adm-ni" onclick="admSec('logs',this)">📋 Activity Logs</div>
+      <div class="adm-ni" onclick="admSec('lessons',this)">🔐 Lesson Access</div>
+      <div class="adm-ni" onclick="admSec('reports',this)">📋 Reports</div>
+      <div class="adm-ni" onclick="admSec('logs',this)">🗒 Activity Logs</div>
       <div class="adm-ni" onclick="admSec('settings',this)">⚙ Settings</div>
     </div>
     <div style="padding:12px 15px;border-top:1.5px solid var(--bdr)">
@@ -771,6 +794,31 @@ tr.stu-inactive td{opacity:.55}
     <div class="modal-foot">
       <button class="btn" onclick="closeM('mBulkPass')">Cancel</button>
       <button class="btn btn-amber" onclick="doBulkPassReset()">🔑 Reset Passwords</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- Lesson Access Control Modal -->
+<div class="overlay" id="mLessonAccess">
+  <div class="modal modal-wide">
+    <div class="modal-title">🔐 Lesson Access — <span id="mLessonAccessName"></span></div>
+    <div id="mLessonAccessBody"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeM('mLessonAccess')">Close</button>
+      <button class="btn btn-amber" onclick="saveLessonAccess()">💾 Save Access</button>
+    </div>
+  </div>
+</div>
+
+<!-- Student Report Modal -->
+<div class="overlay" id="mStudentReport">
+  <div class="modal modal-xl">
+    <div class="modal-title">📋 Student Report — <span id="mReportName"></span></div>
+    <div id="mReportBody" style="max-height:70vh;overflow-y:auto"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeM('mStudentReport')">Close</button>
+      <button class="btn btn-blue" onclick="exportReportPDF()">⬇ Export PDF</button>
     </div>
   </div>
 </div>
@@ -981,10 +1029,12 @@ async function seedIfEmpty() {
     const repairs = {};
     DEFAULT_USERS.forEach(u => {
       const rec = existing[u.uid];
-      if (!rec || !rec.role || !rec.username) {
+      // Only repair records that exist but are corrupt (missing role/username).
+      // If rec is absent the user was intentionally deleted — never re-create them.
+      if (rec && (!rec.role || !rec.username)) {
         const entry = { ...u };
         if (u.role === 'student')
-          entry.progress = rec && rec.progress ? normalizeProgress(rec.progress) : dp();
+          entry.progress = rec.progress ? normalizeProgress(rec.progress) : dp();
         repairs[u.uid] = entry;
       }
     });
@@ -1107,6 +1157,7 @@ window.doLogin = async function() {
       showPg('pg-admin');
       startAdminLiveSync(); // fires fbSub immediately which calls renderAdm()
       startActLogSync();    // live activity log listener
+      startLockSync();      // lesson lock state sync
       if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
       return;
     }
@@ -1196,7 +1247,9 @@ window.doLogout = function() {
   if (_adminUnsubscribe)  { try{_adminUnsubscribe();}catch(e){} _adminUnsubscribe=null; }
   if (_studentUnsubscribe){ try{_studentUnsubscribe();}catch(e){} _studentUnsubscribe=null; }
   if (_actLogUnsubscribe) { try{_actLogUnsubscribe();}catch(e){} _actLogUnsubscribe=null; }
+  if (_lockSubUnsub) { try{_lockSubUnsub();}catch(e){} _lockSubUnsub=null; }
   _actLogCache = [];
+  _globalLocks = {}; _stuOverrides = {};
   _usersCache = {};
   _passVisible = false;
   const inp = document.getElementById('loginP'); if(inp) inp.type = 'password';
@@ -1234,9 +1287,6 @@ function startAdminLiveSync() {
   if (!Object.keys(_usersCache).length) {
     DEFAULT_USERS.forEach(u => { _usersCache[u.uid] = { ...u }; });
   }
-  // Ensure activity log listener is always running (covers session restores
-  // where doLogin is skipped and startActLogSync was never called)
-  startActLogSync();
   // Render immediately with whatever is in cache right now
   renderAdm();
   if (!_fbReady) return;
@@ -2149,7 +2199,7 @@ const LESSONS = [
 <p>Imagine your school keeps records of every student — their name, class, house, and date of birth. Storing all of this in a notebook would quickly become messy and impossible to search. That is where a <strong>database</strong> comes in.</p>
 <div class="ibox"><div class="ibox-ttl">📦 What is a Database?</div>
 A <strong>database</strong> is an organised collection of data stored on a computer. Think of it like a powerful digital filing cabinet that can hold thousands of records and let you find any one of them instantly.</div>
-<p>Databases store data in <strong>tables</strong>. A table looks like a spreadsheet, with <em>columns</em> (types of information) and <em>rows</em> (individual records). Here is a sample from the HP Primary School <code>students</code> table:</p>
+<p>Databases store data in <strong>tables</strong>. A table looks like a spreadsheet, with <em>columns</em> (types of information) and <em>rows</em> (individual records). Here is a sample from the Code Club <code>students</code> table:</p>
 <div class="dp"><div class="dp-ttl">students — sample rows</div>
 <table class="dp-tbl"><tr><th>student_id</th><th>first_name</th><th>last_name</th><th>class</th><th>house</th></tr>
 <tr><td>1</td><td>Andrew</td><td>Nabirye</td><td>P4</td><td>Blue</td></tr>
@@ -2170,13 +2220,37 @@ A <strong>database</strong> is an organised collection of data stored on a compu
 <strong>Column</strong> — a category of information (e.g. <code>first_name</code>)<br>
 <strong>Row</strong> — one individual record (e.g. one student)<br>
 <strong>SQL</strong> — the language used to query and manage a database</div>
-</div></div>`,
+
+<div class="demo-block">
+  <div class="demo-hdr">
+    <span class="demo-hdr-icon">▶</span>
+    <span class="demo-hdr-lbl">Try It</span>
+    <span class="demo-hdr-desc">Run this to see ALL students in the database — click ▶ Run and watch the results appear!</span>
+  </div>
+  <div class="demo-ed-wrap">
+    <div class="demo-lnums" id="demo-ln-0">1</div>
+    <textarea class="demo-ta" id="demo-ta-0" spellcheck="false" oninput="updDemoLnums(0)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runDemoEx(0);}">SELECT * FROM students;</textarea>
+  </div>
+  <div class="demo-foot">
+    <button class="demo-run-btn" onclick="runDemoEx(0)">▶ Run</button>
+    <span class="demo-hint"><span style="font-family:var(--mono);font-size:9px;background:var(--bg4);border:1px solid var(--bdr2);border-radius:3px;padding:1px 4px;color:var(--txt3)">Ctrl+↵</span> to run · This fetches every row and column from the students table.</span>
+  </div>
+  <div class="demo-result" id="demo-result-0">
+    <div class="demo-result-info">
+      <span style="font-size:11px;font-weight:600;color:var(--txt2)">Result</span>
+      <span class="demo-result-stat" id="demo-stat-0"></span>
+      <span style="font-size:10.5px;color:var(--txt4)" id="demo-rows-0"></span>
+    </div>
+    <div id="demo-rb-0"></div>
+  </div>
+</div>
+`,
     exercises:[
-      { q:'Run your first query! Type <code>SELECT * FROM students;</code> to see all students in the database.', s:'SELECT * FROM students;',
+      { q:'Run your first query! Type <code>SELECT * FROM students;</code> to see all students in the database.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results. Make sure you typed: SELECT * FROM students;'}; if(r[0].values.length>=10) return{ok:true}; return{ok:false,m:`Expected at least 10 students. Got ${r[0].values.length}.`}; } },
-      { q:'Explore the <code>teachers</code> table. Type <code>SELECT * FROM teachers;</code> to see all teachers at the school.', s:'SELECT * FROM teachers;',
+      { q:'Explore the <code>teachers</code> table. Type <code>SELECT * FROM teachers;</code> to see all teachers at the school.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'Try: SELECT * FROM teachers;'}; if(r[0].columns.includes('subject')&&r[0].values.length>=5) return{ok:true}; return{ok:false,m:'Expected teacher records with a subject column.'}; } },
-      { q:'Query the <code>classes</code> table. Type <code>SELECT * FROM classes;</code> to see all class groups at the school.', s:'SELECT * FROM classes;',
+      { q:'Query the <code>classes</code> table. Type <code>SELECT * FROM classes;</code> to see all class groups at the school.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'Try: SELECT * FROM classes;'}; if(r[0].columns.includes('class_name')&&r[0].values.length>=5) return{ok:true}; return{ok:false,m:'Expected class records with a class_name column.'}; } }
     ]
   },
@@ -2221,13 +2295,13 @@ select * from students;  <span class="cm">-- also works, harder to read</span></
 ✅ Use <code>-- comments</code> to explain your code</div>
 </div></div>`,
     exercises:[
-      { q:'SQL keywords are not case-sensitive. Write this query in <strong>all lowercase</strong>: <code>select * from students;</code>', s:'select * from students;',
+      { q:'SQL keywords are not case-sensitive. Write this query in <strong>all lowercase</strong>: <code>select * from students;</code>', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'Try: select * from students;'}; if(r[0].values.length>=10) return{ok:true}; return{ok:false,m:'Expected student records.'}; } },
-      { q:'Write a nicely-formatted <strong>multi-line</strong> query to select <code>first_name</code> and <code>last_name</code> from <code>students</code>.', s:'SELECT\n  first_name,\n  last_name\nFROM students;',
+      { q:'Write a nicely-formatted <strong>multi-line</strong> query to select <code>first_name</code> and <code>last_name</code> from <code>students</code>.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; if(c.length===2&&c.includes('first_name')&&c.includes('last_name')&&r[0].values.length>=10) return{ok:true}; return{ok:false,m:`Expected exactly 2 columns: first_name, last_name. Got: ${c.join(', ')}`}; } },
-      { q:"Text values need single quotes. Select all students where <code>house = 'Blue'</code>.", s:"SELECT * FROM students WHERE house = 'Blue';",
+      { q:"Text values need single quotes. Select all students where <code>house = 'Blue'</code>.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:"Try: SELECT * FROM students WHERE house = 'Blue';"}; const ci=r[0].columns.indexOf('house'); if(ci>=0&&r[0].values.every(row=>row[ci]==='Blue')&&r[0].values.length>0) return{ok:true}; return{ok:false,m:`All rows should have house='Blue'.`}; } },
-      { q:"Add a comment. Write: <code>-- Get all teachers</code> on line 1, then <code>SELECT * FROM teachers;</code> on line 2.", s:'-- Get all teachers\nSELECT * FROM teachers;',
+      { q:"Add a comment. Write: <code>-- Get all teachers</code> on line 1, then <code>SELECT * FROM teachers;</code> on line 2.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'Make sure SELECT * FROM teachers; appears after the comment.'}; if(r[0].columns.includes('subject')&&r[0].values.length>=5) return{ok:true}; return{ok:false,m:'Expected teacher records.'}; } }
     ]
   },
@@ -2263,19 +2337,77 @@ select * from students;  <span class="cm">-- also works, harder to read</span></
 <span class="kw">FROM</span> <span class="tb">students</span>
 <span class="kw">WHERE</span> house = <span class="st">'Blue'</span>;</pre>
 </div>
-</div></div>`,
+
+<div class="demo-block">
+  <div class="demo-hdr">
+    <span class="demo-hdr-icon">▶</span>
+    <span class="demo-hdr-lbl">Try It</span>
+    <span class="demo-hdr-desc">Run this example to see a properly formatted SQL query with a comment, specific columns, and a WHERE filter.</span>
+  </div>
+  <div class="demo-ed-wrap">
+    <div class="demo-lnums" id="demo-ln-1">1
+2
+3
+4</div>
+    <textarea class="demo-ta" id="demo-ta-1" spellcheck="false" oninput="updDemoLnums(1)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runDemoEx(1);}">-- This query finds all Blue house students
+SELECT first_name, last_name, house
+FROM students
+WHERE house = 'Blue';</textarea>
+  </div>
+  <div class="demo-foot">
+    <button class="demo-run-btn" onclick="runDemoEx(1)">▶ Run</button>
+    <span class="demo-hint"><span style="font-family:var(--mono);font-size:9px;background:var(--bg4);border:1px solid var(--bdr2);border-radius:3px;padding:1px 4px;color:var(--txt3)">Ctrl+↵</span> to run · Notice the comment on line 1, UPPERCASE keywords, and single quotes around 'Blue'.</span>
+  </div>
+  <div class="demo-result" id="demo-result-1">
+    <div class="demo-result-info">
+      <span style="font-size:11px;font-weight:600;color:var(--txt2)">Result</span>
+      <span class="demo-result-stat" id="demo-stat-1"></span>
+      <span style="font-size:10.5px;color:var(--txt4)" id="demo-rows-1"></span>
+    </div>
+    <div id="demo-rb-1"></div>
+  </div>
+</div>
+
+<div class="demo-block">
+  <div class="demo-hdr">
+    <span class="demo-hdr-icon">▶</span>
+    <span class="demo-hdr-lbl">Try It</span>
+    <span class="demo-hdr-desc">Run this to see how SELECT picks specific columns and WHERE filters rows — only Green house students appear.</span>
+  </div>
+  <div class="demo-ed-wrap">
+    <div class="demo-lnums" id="demo-ln-2">1
+2
+3</div>
+    <textarea class="demo-ta" id="demo-ta-2" spellcheck="false" oninput="updDemoLnums(2)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runDemoEx(2);}">SELECT first_name, last_name, class
+FROM students
+WHERE house = 'Green';</textarea>
+  </div>
+  <div class="demo-foot">
+    <button class="demo-run-btn" onclick="runDemoEx(2)">▶ Run</button>
+    <span class="demo-hint"><span style="font-family:var(--mono);font-size:9px;background:var(--bg4);border:1px solid var(--bdr2);border-radius:3px;padding:1px 4px;color:var(--txt3)">Ctrl+↵</span> to run · Only 3 columns returned, filtered to Green house only.</span>
+  </div>
+  <div class="demo-result" id="demo-result-2">
+    <div class="demo-result-info">
+      <span style="font-size:11px;font-weight:600;color:var(--txt2)">Result</span>
+      <span class="demo-result-stat" id="demo-stat-2"></span>
+      <span style="font-size:10.5px;color:var(--txt4)" id="demo-rows-2"></span>
+    </div>
+    <div id="demo-rb-2"></div>
+  </div>
+</div>
+`,
     exercises:[
-      { q:'Select only <code>first_name</code>, <code>last_name</code>, and <code>class</code> from the <code>students</code> table.', s:'SELECT first_name, last_name, class\nFROM students;',
+      { q:'Select only <code>first_name</code>, <code>last_name</code>, and <code>class</code> from the <code>students</code> table.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; if(c.length===3&&c.includes('first_name')&&c.includes('last_name')&&c.includes('class')&&r[0].values.length>=10) return{ok:true}; return{ok:false,m:`Expected 3 columns: first_name, last_name, class. Got: ${c.join(', ')}`}; } },
-      { q:'Select <code>first_name</code>, <code>last_name</code>, and <code>subject</code> from the <code>teachers</code> table.', s:'SELECT first_name, last_name, subject\nFROM teachers;',
+      { q:'Select <code>first_name</code>, <code>last_name</code>, and <code>subject</code> from the <code>teachers</code> table.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; if(c.includes('first_name')&&c.includes('last_name')&&c.includes('subject')&&r[0].values.length>=5) return{ok:true}; return{ok:false,m:`Expected first_name, last_name, subject from teachers. Got: ${c.join(', ')}`}; } },
-      { q:"Use WHERE to find all students in the <code>Red</code> house. Show all columns.", s:"SELECT * FROM students\nWHERE house = 'Red';",
+      { q:"Use WHERE to find all students in the <code>Red</code> house. Show all columns.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const ci=r[0].columns.indexOf('house'); if(ci>=0&&r[0].values.every(row=>row[ci]==='Red')&&r[0].values.length>0) return{ok:true}; return{ok:false,m:`All rows must be house='Red'.`}; } },
-      { q:"Use WHERE to select all <code>Female</code> students. Show only <code>first_name</code>, <code>last_name</code>, and <code>class</code>.", s:"SELECT first_name, last_name, class\nFROM students\nWHERE gender = 'Female';",
+      { q:"Use WHERE to select all <code>Female</code> students. Show only <code>first_name</code>, <code>last_name</code>, and <code>class</code>.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; if(!c.includes('first_name')||!c.includes('last_name')||!c.includes('class')) return{ok:false,m:`Expected first_name, last_name, class. Got: ${c.join(', ')}`}; const gi=c.indexOf('gender'); if(gi>=0&&!r[0].values.every(row=>row[gi]==='Female')) return{ok:false,m:"All rows must be gender='Female'."}; return{ok:true}; } },
-      { q:"Select <code>first_name</code>, <code>last_name</code>, and <code>house</code> from students where <code>class = 'P4'</code>.", s:"SELECT first_name, last_name, house\nFROM students\nWHERE class = 'P4';",
+      { q:"Select <code>first_name</code>, <code>last_name</code>, and <code>house</code> from students where <code>class = 'P4'</code>.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; if(!c.includes('first_name')||!c.includes('last_name')||!c.includes('house')) return{ok:false,m:`Expected first_name, last_name, house. Got: ${c.join(', ')}`}; const ci=c.indexOf('class'); const ok2=ci<0||r[0].values.every(row=>row[ci]==='P4'); return ok2?{ok:true}:{ok:false,m:"All rows must be class='P4'."}; } },
-      { q:"Select ALL columns from the <code>teachers</code> table where <code>subject = 'Science'</code>.", s:"SELECT * FROM teachers\nWHERE subject = 'Science';",
+      { q:"Select ALL columns from the <code>teachers</code> table where <code>subject = 'Science'</code>.", s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const si=r[0].columns.indexOf('subject'); if(si>=0&&r[0].values.every(row=>row[si]==='Science')&&r[0].values.length>0) return{ok:true}; return{ok:false,m:`All rows must be subject='Science'. Got ${r[0].values.length} rows.`}; } }
     ]
   },
@@ -2311,15 +2443,41 @@ Use it when you want to know <strong>what values exist</strong> — not how many
 ✅ What subjects are taught? → <code>SELECT DISTINCT subject FROM teachers;</code><br>
 ✅ What year groups exist? → <code>SELECT DISTINCT class FROM students;</code>
 </div>
-</div></div>`,
+</div></div>
+<div class="demo-block">
+  <div class="demo-hdr">
+    <span class="demo-hdr-icon">▶</span>
+    <span class="demo-hdr-lbl">Try It</span>
+    <span class="demo-hdr-desc">Run this to see DISTINCT in action — just 4 unique house names instead of one per student.</span>
+  </div>
+  <div class="demo-ed-wrap">
+    <div class="demo-lnums" id="demo-ln-3">1
+2</div>
+    <textarea class="demo-ta" id="demo-ta-3" spellcheck="false" oninput="updDemoLnums(3)" onkeydown="if((event.ctrlKey||event.metaKey)&&event.key==='Enter'){event.preventDefault();runDemoEx(3);}">SELECT DISTINCT house
+FROM students;</textarea>
+  </div>
+  <div class="demo-foot">
+    <button class="demo-run-btn" onclick="runDemoEx(3)">▶ Run</button>
+    <span class="demo-hint"><span style="font-family:var(--mono);font-size:9px;background:var(--bg4);border:1px solid var(--bdr2);border-radius:3px;padding:1px 4px;color:var(--txt3)">Ctrl+↵</span> to run · Without DISTINCT you would get 30 rows. DISTINCT gives you only unique values.</span>
+  </div>
+  <div class="demo-result" id="demo-result-3">
+    <div class="demo-result-info">
+      <span style="font-size:11px;font-weight:600;color:var(--txt2)">Result</span>
+      <span class="demo-result-stat" id="demo-stat-3"></span>
+      <span style="font-size:10.5px;color:var(--txt4)" id="demo-rows-3"></span>
+    </div>
+    <div id="demo-rb-3"></div>
+  </div>
+</div>
+`,
     exercises:[
-      { q:'Use <code>SELECT DISTINCT</code> to list all unique <code>house</code> values from students.', s:'SELECT DISTINCT house\nFROM students;',
+      { q:'Use <code>SELECT DISTINCT</code> to list all unique <code>house</code> values from students.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'Try: SELECT DISTINCT house FROM students;'}; if(r[0].values.length===4) return{ok:true}; return{ok:false,m:`Expected 4 unique houses. Got ${r[0].values.length}.`}; } },
-      { q:'Use <code>SELECT DISTINCT</code> to list all unique <code>class</code> values from the students table.', s:'SELECT DISTINCT class\nFROM students;',
+      { q:'Use <code>SELECT DISTINCT</code> to list all unique <code>class</code> values from the students table.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results. Try: SELECT DISTINCT class FROM students;'}; const v=r[0].values; if(v.length===7) return{ok:true}; return{ok:false,m:`Expected 7 unique classes (P1–P7). Got ${v.length}.`}; } },
-      { q:'Use <code>SELECT DISTINCT</code> on the <code>subject</code> column from the <code>teachers</code> table.', s:'SELECT DISTINCT subject\nFROM teachers;',
+      { q:'Use <code>SELECT DISTINCT</code> on the <code>subject</code> column from the <code>teachers</code> table.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; if(r[0].values.length>=4&&r[0].columns.includes('subject')) return{ok:true}; return{ok:false,m:`Expected at least 4 unique subjects. Got ${r[0].values.length}.`}; } },
-      { q:'Get all unique combinations of <code>class</code> and <code>house</code> from students using <code>SELECT DISTINCT class, house</code>.', s:'SELECT DISTINCT class, house\nFROM students;',
+      { q:'Get all unique combinations of <code>class</code> and <code>house</code> from students using <code>SELECT DISTINCT class, house</code>.', s:'',
         v:r=>{ if(!r||!r.length) return{ok:false,m:'No results.'}; const c=r[0].columns; if(c.includes('class')&&c.includes('house')&&r[0].values.length>7) return{ok:true}; return{ok:false,m:`Expected class+house combinations. Got ${r[0].values.length} rows.`}; } }
     ]
   },
@@ -2362,6 +2520,45 @@ Use it when you want to know <strong>what values exist</strong> — not how many
 ];
 
 
+
+/* ═══════════════════════════════════════════════════════
+   TRY IT — runnable demo blocks (prefilled, not scored)
+═══════════════════════════════════════════════════════ */
+window.runDemoEx = function(lessonIdx) {
+  if (!db) { toast('Database loading…', 'err'); return; }
+  const ta   = document.getElementById(`demo-ta-${lessonIdx}`);
+  const res  = document.getElementById(`demo-result-${lessonIdx}`);
+  const stat = document.getElementById(`demo-stat-${lessonIdx}`);
+  const rows = document.getElementById(`demo-rows-${lessonIdx}`);
+  if (!ta || !res) return;
+  const sql = ta.value.trim();
+  if (!sql) return;
+  let r, err;
+  try { r = db.exec(sql); } catch(e) { err = e.message; }
+  res.classList.add('show');
+  const rb = document.getElementById(`demo-rb-${lessonIdx}`);
+  if (err) {
+    if (stat) { stat.className='demo-result-stat'; stat.style.background='var(--redbg)'; stat.style.color='var(--red)'; stat.textContent='error'; }
+    if (rb) rb.innerHTML=`<div style="padding:6px 10px;font-family:var(--mono);font-size:11px;color:var(--red)">❌ ${Security.esc(err)}</div>`;
+    return;
+  }
+  if (!r || !r.length) {
+    if (stat) { stat.className='demo-result-stat'; stat.style.background='var(--bg4)'; stat.style.color='var(--txt3)'; stat.textContent='no rows'; }
+    if (rb) rb.innerHTML='<div style="padding:7px 10px;font-size:11.5px;color:var(--txt3)">Query ran — no rows returned.</div>';
+    return;
+  }
+  if (stat) { stat.className='demo-result-stat'; stat.style.background='var(--greenbg)'; stat.style.color='var(--green)'; stat.textContent=r[0].values.length+' row(s)'; }
+  if (rows) rows.textContent=r[0].values.length+' row'+(r[0].values.length!==1?'s':'')+' returned';
+  if (rb) rb.innerHTML = buildRTbl(r[0]);
+};
+
+window.updDemoLnums = function(lessonIdx) {
+  const ta = document.getElementById(`demo-ta-${lessonIdx}`);
+  const ln = document.getElementById(`demo-ln-${lessonIdx}`);
+  if (!ta || !ln) return;
+  ln.textContent = Array.from({length: ta.value.split('\n').length}, (_,i)=>i+1).join('\n');
+};
+
 /* ═══════════════════════════════════════════════════════
    APP INIT  (student view)
 ═══════════════════════════════════════════════════════ */
@@ -2391,12 +2588,22 @@ function renderSB() {
     const unlk = prog.unlocked.includes(i);
     const done = prog.completed.includes(i);
     const act  = i === curLI;
+    const adminLocked = (typeof isLessonLockedForStudent === 'function') && curUser
+                        ? isLessonLockedForStudent(curUser.uid, i) : false;
+    const accessible  = unlk && !adminLocked;
+    const ck = done ? '✓' : adminLocked ? '🔐' : act ? '▶' : '○';
     const d = document.createElement('div');
-    d.className = 'sb-item'+(act?' active':'')+(done?' done':'')+(unlk?'':' locked');
-    d.innerHTML = `<span class="sb-ck">${done?'✓':(act?'▶':'○')}</span>`
-                + `<span class="sb-lbl">${L.icon} ${Security.esc(L.title)}</span>`
-                + (unlk?'':'<span style="font-size:10px">🔒</span>');
-    d.onclick = () => { if(unlk) loadLesson(i); else toast('Complete the current lesson first.','warn'); };
+    d.className = 'sb-item'+(act?' active':'')+(done?' done':'')+(accessible?'':' locked');
+    d.innerHTML = `<span class="sb-ck">${ck}</span>`
+                + `<span class="sb-lbl">${L.icon} ${Security.esc(L.title)}`
+                + `${adminLocked && unlk ? '<span style="font-size:9px;color:var(--red);margin-left:3px">locked</span>' : ''}`
+                + `${!unlk && !adminLocked ? '<span style="font-size:10px"> 🔒</span>' : ''}`
+                + `</span>`;
+    d.onclick = () => {
+      if (accessible) loadLesson(i);
+      else if (adminLocked) toast('🔐 This lesson is currently locked by your instructor.','warn');
+      else toast('Complete the current lesson first.','warn');
+    };
     nav.appendChild(d);
   });
   const total = 5;
@@ -2667,7 +2874,7 @@ window.genCert = function() {
   doc.setDrawColor(232,131,10); doc.setLineWidth(0.4); doc.rect(14,14,W-28,H-28);
   doc.setFillColor(22,27,36); doc.rect(10,10,W-20,25,'F');
   doc.setTextColor(245,166,35); doc.setFontSize(13); doc.setFont('helvetica','bold');
-  doc.text('HP PRIMARY SCHOOL', W/2,21,{align:'center'});
+  doc.text('CODE CLUB', W/2,21,{align:'center'});
   doc.setTextColor(143,163,188); doc.setFontSize(8); doc.setFont('helvetica','normal');
   doc.text('SQL Fundamentals Course  ·  northgreen.ac.ug', W/2,29,{align:'center'});
   doc.setTextColor(245,166,35); doc.setFontSize(22); doc.setFont('helvetica','bold');
@@ -2690,7 +2897,7 @@ window.genCert = function() {
   doc.text(`Date Issued: ${td}`, W/2,148,{align:'center'});
   doc.setDrawColor(46,58,78); doc.setLineWidth(0.3); doc.line(55,160,W-55,160);
   doc.setTextColor(90,112,144); doc.setFontSize(7.5);
-  doc.text('HP Primary School  ·  SQL Fundamentals  ·  northgreen.ac.ug', W/2,167,{align:'center'});
+  doc.text('Code Club  ·  SQL Fundamentals  ·  northgreen.ac.ug', W/2,167,{align:'center'});
   doc.text('Email certificate to: michaelkalanda@northgreen.ac.ug', W/2,173,{align:'center'});
   doc.save(`SQL_Certificate_${name.replace(/[^a-z0-9]/gi,'_')}.pdf`);
   const note = document.getElementById('certNote'); if (note) note.style.display='block';
@@ -2814,6 +3021,8 @@ function renderAdm() {
   if      (admSec2==='overview')  admOverview(body);
   else if (admSec2==='students')  admStudents(body);
   else if (admSec2==='progress')  admProgress(body);
+  else if (admSec2==='lessons')   admLessons(body);
+  else if (admSec2==='reports')   admReports(body);
   else if (admSec2==='logs')      admLogs(body);
   else if (admSec2==='settings')  admSettings(body);
 }
@@ -2822,6 +3031,13 @@ window.admSec = function(sec, el) {
   admSec2 = sec;
   document.querySelectorAll('.adm-ni').forEach(i=>i.classList.remove('active'));
   if (el) el.classList.add('active');
+  const ttlMap = {
+    overview:'Overview', students:'Students', progress:'Progress',
+    lessons:'Lesson Access', reports:'Reports',
+    logs:'Activity Logs', settings:'Settings'
+  };
+  const ttlEl = document.getElementById('admTtl');
+  if (ttlEl) ttlEl.textContent = ttlMap[sec] || sec;
   renderAdm();
 };
 
@@ -2867,11 +3083,13 @@ function admStudents(body) {
       <td><div style="display:flex;align-items:center;gap:7px"><div class="mini-bar"><div class="mini-fill" style="width:${pct}%"></div></div><span style="font-size:11px;color:var(--txt3)">${pct}%</span></div></td>
       <td style="font-size:11.5px;color:var(--txt3)">${Security.esc(ll)}</td>
       <td><div class="act-row">
-        <button class="btn btn-xs btn-blue" onclick="viewProg('${Security.esc(s.uid)}')">📈</button>
-        <button class="btn btn-xs" onclick="editStu('${Security.esc(s.uid)}')">✏️</button>
-        <button class="btn btn-xs" onclick="unlkAll('${Security.esc(s.uid)}')">🔓</button>
-        <button class="btn btn-xs" onclick="rstStu('${Security.esc(s.uid)}')">↺</button>
-        <button class="btn btn-xs btn-red" onclick="delStu('${Security.esc(s.uid)}')">🗑</button>
+        <button class="btn btn-xs btn-blue" title="Full Report" onclick="viewStudentReport('${Security.esc(s.uid)}')">📋</button>
+        <button class="btn btn-xs" title="Progress" onclick="viewProg('${Security.esc(s.uid)}')">📈</button>
+        <button class="btn btn-xs" title="Edit" onclick="editStu('${Security.esc(s.uid)}')">✏️</button>
+        <button class="btn btn-xs" title="Lesson Access" onclick="openLessonAccess('${Security.esc(s.uid)}')">🔐</button>
+        <button class="btn btn-xs" title="Unlock All" onclick="unlkAll('${Security.esc(s.uid)}')">🔓</button>
+        <button class="btn btn-xs" title="Reset" onclick="rstStu('${Security.esc(s.uid)}')">↺</button>
+        <button class="btn btn-xs btn-red" title="Delete" onclick="delStu('${Security.esc(s.uid)}')">🗑</button>
       </div></td>
     </tr>`;
   }).join('');
@@ -2950,7 +3168,16 @@ function admProgress(body) {
 
 function admLogs(body) {
   body.innerHTML = `<div class="scard"><div class="scard-ttl">📋 Activity Log <button class="btn btn-xs btn-red" style="margin-left:auto" onclick="clrLogs()">Clear All</button></div><div id="admLogList" style="min-height:40px"><div style="color:var(--txt3);font-size:12.5px">Loading…</div></div></div>`;
+  // Render immediately with whatever is cached right now
   _refreshLogsPanel();
+  // If cache is empty Firebase may still be delivering child_added events.
+  // Poll once after a short delay so historical entries that arrive slightly
+  // late are picked up and displayed.
+  if (!_actLogCache.length) {
+    setTimeout(() => {
+      if (admSec2 === 'logs') _refreshLogsPanel();
+    }, 1200);
+  }
 }
 
 function admSettings(body) {
@@ -3215,6 +3442,7 @@ window.bulkUnlock = async function() {
   }));
   toast(`Lessons unlocked for ${uids.length} student(s).`);
   logAct(`Admin bulk-unlocked lessons for ${uids.length} student(s)`, 'b');
+  clearSelection();
 };
 
 window.bulkReset = async function() {
@@ -3223,6 +3451,7 @@ window.bulkReset = async function() {
   await Promise.all(uids.map(uid=>fbSet(`users/${uid}/progress`, dp())));
   toast(`Progress reset for ${uids.length} student(s).`, 'warn');
   logAct(`Admin bulk-reset progress for ${uids.length} student(s)`, 'r');
+  clearSelection();
 };
 
 window.bulkDelete = async function() {
@@ -3232,6 +3461,7 @@ window.bulkDelete = async function() {
   await Promise.all(uids.map(uid=>fbDel(`users/${uid}`)));
   toast(`${uids.length} student(s) deleted.`, 'warn');
   logAct(`Admin bulk-deleted ${uids.length} student(s)`, 'r');
+  clearSelection();
 };
 
 window.bulkToggleActive = async function() {
@@ -3243,6 +3473,7 @@ window.bulkToggleActive = async function() {
   await Promise.all(uids.map(uid=>fbUpd(`users/${uid}`, { active:makeActive })));
   toast(`${uids.length} student(s) ${action}d.`);
   logAct(`Admin ${action}d ${uids.length} student(s)`, makeActive?'g':'');
+  clearSelection();
 };
 
 window.bulkExport = function() {
@@ -3285,6 +3516,7 @@ window.doBulkPassReset = async function() {
   closeM('mBulkPass');
   toast(`Password reset for ${uids.length} student(s).`);
   logAct(`Admin bulk-reset passwords for ${uids.length} student(s)`, 'b');
+  clearSelection();
 };
 
 window.unlkAllStus = async function() {
@@ -3376,7 +3608,7 @@ function parseAndPreviewCSV(raw) {
     const rowErr=[];
     if(!rn) rowErr.push('Name is empty');
     if(!ru) rowErr.push('Username is empty');
-    else if(!/^[a-z0-9._-]+$/.test(ru)) rowErr.push(`Username "${Security.esc(ru)}" has invalid characters`);
+    else if(!/^[a-z0-9._%+@-]+$/.test(ru)) rowErr.push(`Username "${Security.esc(ru)}" has invalid characters (letters, numbers, . _ % + - @ are allowed)`);
     if(!rp) rowErr.push('Password is empty');
     else if(rp.length<4) rowErr.push('Password too short (min 4 chars)');
     if(rowErr.length){errors.push(`Row ${i}: ${rowErr.join('; ')}`);continue;}
@@ -3398,15 +3630,892 @@ function parseAndPreviewCSV(raw) {
 window.importCSV = async function() {
   if(!_csvParsed.length){toast('No valid students to import.','err');return;}
   if(!confirm(`Import ${_csvParsed.length} new student account(s)?`)) return;
-  await Promise.all(_csvParsed.map((row, i)=>{
-    const uid='s'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6);
-    return fbSet(`users/${uid}`,{uid,role:'student',name:row.name,username:row.username,password:row.password,active:true,progress:dp()});
-  }));
+  if(!_fbReady){toast('Firebase not ready — check your connection.','err');return;}
+  try {
+    await Promise.all(_csvParsed.map((row,i)=>{
+      const uid='s'+Date.now()+'_'+i+'_'+Math.random().toString(36).slice(2,6);
+      return fbSet(`users/${uid}`,{uid,role:'student',name:row.name,username:row.username,password:row.password,active:true,progress:dp()});
+    }));
+  } catch(e) {
+    toast('Import failed — check your connection and Firebase rules.','err');
+    console.error('[HPSchool] importCSV error:',e);
+    return;
+  }
   const count=_csvParsed.length;
   closeM('mCSVImport'); resetCSVModal();
   admSec2='students';
   toast(`✅ ${count} student(s) imported!`);
   logAct(`Admin imported ${count} student(s) via CSV`, 'g');
+};
+
+
+/* ═══════════════════════════════════════════════════════
+   LESSON LOCK SYSTEM
+   Firebase paths:
+     lessonLocks/global/L{n}  — true = globally locked for all students
+     lessonLocks/students/{uid}/L{n} — 'lock'|'unlock' — per-student override
+   Admin can lock/unlock lessons globally OR per student.
+   When a lesson is globally locked, checkLessonComplete will NOT
+   auto-unlock the next lesson; the student sees it as locked.
+   An individual override can unlock a globally-locked lesson for
+   a specific student, or lock an otherwise-unlocked lesson.
+═══════════════════════════════════════════════════════ */
+
+let _globalLocks  = {};   // { L0: false, L1: false, L2: true, ... }
+let _stuOverrides = {};   // { uid: { L0:'unlock', L2:'lock', ... } }
+let _lockSubUnsub = null;
+
+// Load locks from Firebase on admin login + keep live
+function startLockSync() {
+  if (!_fbReady) return;
+  if (_lockSubUnsub) { try{_lockSubUnsub();}catch(e){} }
+  _lockSubUnsub = fbSub('lessonLocks', snap => {
+    if (!snap.exists()) { _globalLocks={}; _stuOverrides={}; return; }
+    const val = snap.val();
+    _globalLocks  = val.global   || {};
+    _stuOverrides = val.students || {};
+  });
+}
+
+// Is lesson index LI globally locked?
+function isGloballyLocked(li) {
+  return !!_globalLocks[`L${li}`];
+}
+
+// What is the effective lock state for a specific student + lesson?
+// Returns true if locked (blocked), false if accessible
+function isLessonLockedForStudent(uid, li) {
+  const override = (_stuOverrides[uid] || {})[`L${li}`];
+  if (override === 'unlock') return false;   // explicit per-student unlock
+  if (override === 'lock')   return true;    // explicit per-student lock
+  return isGloballyLocked(li);              // fall back to global
+}
+
+// Called by nav() — blocks navigation to a locked lesson
+function checkLockBeforeNav(li) {
+  if (!curUser) return false;
+  return isLessonLockedForStudent(curUser.uid, li);
+}
+
+// Modify checkLessonComplete so completing L(n) does NOT auto-unlock L(n+1)
+// if L(n+1) is admin-locked.
+// Original logic: if all done, push next to unlocked. We keep that but note
+// that nav() will still block if the lesson is admin-locked.
+
+/* ── ADMIN UI: Lesson Access section ── */
+window.admLessons = function(body) {
+  const lessons = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
+  const students = getStudents();
+
+  // Build global lock row
+  let globalRow = '';
+  lessons.forEach((lbl, li) => {
+    const locked = isGloballyLocked(li);
+    globalRow += `
+      <div class="lock-card" style="border-color:${locked?'var(--red)':'var(--green)'}20">
+        <div class="lock-card-ttl">L${li+1}: ${Security.esc(lbl)}</div>
+        <div class="lock-card-sub">${locked?'🔒 Globally locked':'🔓 Available to all'}</div>
+        <label class="lock-toggle">
+          <input type="checkbox" id="glock-${li}" ${locked?'checked':''} onchange="toggleGlobalLock(${li},this.checked)">
+          <span>${locked?'Locked (click to unlock)':'Unlocked (click to lock)'}</span>
+        </label>
+      </div>`;
+  });
+
+  // Build per-student table
+  let stuRows = students.map(s => {
+    const pills = lessons.map((lbl, li) => {
+      const ov = (_stuOverrides[s.uid]||{})[`L${li}`];
+      const globalLocked = isGloballyLocked(li);
+      let state, label, cls;
+      if (ov === 'unlock') { state='unlocked'; label='✓ Unlocked'; cls='unlocked'; }
+      else if (ov === 'lock') { state='locked'; label='✗ Locked'; cls='locked'; }
+      else if (globalLocked) { state='locked'; label='🔒 Global'; cls='locked'; }
+      else { state='unlocked'; label='✓ Open'; cls='unlocked'; }
+      return `<span class="lock-pill ${cls}" title="L${li+1}: ${Security.esc(lbl)}" onclick="toggleStuLessonLock('${Security.esc(s.uid)}',${li},'${state}')">L${li+1}: ${label}</span>`;
+    }).join('');
+    return `<div class="lock-row">
+      <div class="lock-stu-name">${Security.esc(s.name)}</div>
+      <div class="lock-pills">${pills}</div>
+    </div>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="scard">
+      <div class="scard-ttl" style="display:flex;align-items:center;gap:8px">
+        🌍 Global Lesson Locks
+        <span style="font-size:11px;color:var(--txt3);font-weight:400">Apply to all students at once</span>
+        <button class="btn btn-xs btn-green" style="margin-left:auto" onclick="globalUnlockAll()">🔓 Unlock All</button>
+        <button class="btn btn-xs btn-red" onclick="globalLockAll()">🔒 Lock All</button>
+      </div>
+      <p style="font-size:12px;color:var(--txt3);margin:8px 0 12px">Globally locking a lesson prevents ALL students from advancing to it — even if they finished the previous one. Individual overrides below can still unlock it for specific students.</p>
+      <div class="lock-grid">${globalRow}</div>
+    </div>
+    <div class="scard">
+      <div class="scard-ttl">👤 Per-Student Overrides</div>
+      <p style="font-size:12px;color:var(--txt3);margin-bottom:12px">Click any pill to toggle. Green = student can access. Red = student is blocked.</p>
+      <input class="inp" placeholder="Search students…" oninput="filterLockRows(this.value)" style="max-width:320px;margin-bottom:10px">
+      <div id="stuLockRows">${stuRows}</div>
+    </div>`;
+};
+
+window.filterLockRows = function(q) {
+  document.querySelectorAll('.lock-row').forEach(r => {
+    r.style.display = r.textContent.toLowerCase().includes(q.toLowerCase()) ? '' : 'none';
+  });
+};
+
+window.toggleGlobalLock = async function(li, locked) {
+  const lbl = document.getElementById('glock-'+li);
+  try {
+    if (locked) {
+      await fbSet(`lessonLocks/global/L${li}`, true);
+      _globalLocks[`L${li}`] = true;
+      logAct(`Admin globally locked Lesson ${li+1}`, 'r');
+    } else {
+      await fbDel(`lessonLocks/global/L${li}`);
+      delete _globalLocks[`L${li}`];
+      logAct(`Admin globally unlocked Lesson ${li+1}`, 'g');
+    }
+    toast(`Lesson ${li+1} ${locked?'locked 🔒':'unlocked 🔓'} globally.`);
+    renderAdm(); // re-render to update pills
+  } catch(e) { toast('Could not update lock — check connection.','err'); }
+};
+
+window.toggleStuLessonLock = async function(uid, li, currentState) {
+  const s = findUser(uid); if (!s) return;
+  const globalLocked = isGloballyLocked(li);
+  let newOverride;
+  // Cycle: if currently open (unlocked) → lock; if locked → unlock (override)
+  if (currentState === 'unlocked') {
+    newOverride = 'lock';
+  } else {
+    // Was locked (by global or explicit lock) → set per-student unlock
+    newOverride = 'unlock';
+  }
+  try {
+    if (newOverride === 'unlock' && !globalLocked) {
+      // No need for override if globally unlocked already — remove it
+      await fbDel(`lessonLocks/students/${uid}/L${li}`);
+    } else {
+      await fbSet(`lessonLocks/students/${uid}/L${li}`, newOverride);
+    }
+    if (!_stuOverrides[uid]) _stuOverrides[uid] = {};
+    if (newOverride === 'unlock' && !globalLocked) {
+      delete _stuOverrides[uid][`L${li}`];
+    } else {
+      _stuOverrides[uid][`L${li}`] = newOverride;
+    }
+    toast(`${Security.esc(s.name)} — L${li+1} ${newOverride==='lock'?'locked 🔒':'unlocked 🔓'}.`);
+    logAct(`Admin ${newOverride}ed Lesson ${li+1} for "${Security.esc(s.name)}"`, newOverride==='lock'?'r':'g');
+    renderAdm();
+  } catch(e) { toast('Could not save — check connection.','err'); }
+};
+
+window.globalUnlockAll = async function() {
+  if (!confirm('Unlock all 5 lessons globally?')) return;
+  await fbDel('lessonLocks/global');
+  _globalLocks = {};
+  toast('All lessons unlocked globally 🔓'); logAct('Admin globally unlocked all lessons','g'); renderAdm();
+};
+
+window.globalLockAll = async function() {
+  if (!confirm('Lock ALL lessons globally? All students will be blocked from progressing.')) return;
+  const updates = {};
+  [0,1,2,3,4].forEach(li => { updates[`L${li}`] = true; });
+  await fbSet('lessonLocks/global', updates);
+  _globalLocks = { L0:true,L1:true,L2:true,L3:true,L4:true };
+  toast('All lessons locked globally 🔒','warn'); logAct('Admin globally locked all lessons','r'); renderAdm();
+};
+
+/* ── nav() respects both completion and admin locks ── */
+// Note: Students auto-progress normally when completing lessons.
+// Admin locks ONLY block when explicitly set via Lesson Access panel.
+window.nav = function(dir) {
+  if (!requireSession()) return;
+  const ni = curLI + dir;
+  if (ni < 0 || ni >= LESSONS.length) return;
+  if (!getProg().unlocked.includes(ni)) {
+    toast('Complete the current lesson to unlock the next one.','warn');
+    return;
+  }
+  if (checkLockBeforeNav(ni)) {
+    toast('🔐 This lesson is currently locked by your instructor.','warn');
+    return;
+  }
+  loadLesson(ni);
+};
+
+/* ── Patch renderSB to show lock badges on sidebar ── */
+const _origRenderSB = typeof renderSB !== 'undefined' ? renderSB : null;
+
+
+/* ═══════════════════════════════════════════════════════
+   DETAILED REPORTS
+   Includes: last login, per-lesson progress, exercises,
+   areas excelled, areas of improvement, activity trends.
+═══════════════════════════════════════════════════════ */
+
+const LESSON_NAMES = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
+const LESSON_EX_COUNTS = [3, 4, 5, 4, 15]; // exercises per lesson from LESSONS array
+
+function buildStudentReport(s) {
+  const p = normalizeProgress(s.progress);
+  const comp  = p.completed || [];
+  const exR   = p.exResults || {};
+  const lastAccess = p.lastAccess ? new Date(p.lastAccess) : null;
+  const now   = new Date();
+
+  // — Overall metrics
+  const lessDone   = comp.filter(x => x < 4).length;
+  const totalLessons = 4;
+  const overallPct = Math.round((lessDone + (p.practisePassed?1:0)) / 5 * 100);
+  const daysSince  = lastAccess ? Math.floor((now - lastAccess) / 864e5) : null;
+
+  // — Per-lesson exercise scores
+  const lessonStats = LESSON_NAMES.map((name, li) => {
+    const cnt = LESSON_EX_COUNTS[li];
+    let done = 0;
+    for (let j=0; j<cnt; j++) {
+      if (exR[`${li}_${j}`] === true) done++;
+    }
+    const pct = cnt > 0 ? Math.round(done/cnt*100) : 0;
+    const isDone = comp.includes(li);
+    return { li, name, cnt, done, pct, isDone };
+  });
+
+  // — Practise details
+  const pracScore   = p.practiseScore != null ? Math.round(p.practiseScore*100) : null;
+  const pracPassed  = p.practisePassed;
+  const pracDone    = lessonStats[4].done;
+  const pracTotal   = 15;
+
+  // — Areas excelled (lessons with 100% exercises)
+  const excelled = lessonStats.filter(l => l.pct === 100 && l.cnt > 0);
+
+  // — Areas of improvement (lessons started but < 80%)
+  const improvement = lessonStats.filter(l => l.done > 0 && l.pct < 80);
+
+  // — Not started
+  const notStarted = lessonStats.filter(l => l.done === 0 && !l.isDone);
+
+  // — Activity status
+  let actStatus, actClass;
+  if (!lastAccess) { actStatus = 'Not yet logged in'; actClass = 'warn'; }
+  else if (daysSince === 0) { actStatus = 'Active today'; actClass = 'good'; }
+  else if (daysSince <= 3) { actStatus = `Active ${daysSince}d ago`; actClass = 'good'; }
+  else if (daysSince <= 7) { actStatus = `Inactive ${daysSince}d`; actClass = 'imp'; }
+  else { actStatus = `Inactive ${daysSince}d`; actClass = 'warn'; }
+
+  // — Lesson access lock info
+  let lockInfo = '';
+  [0,1,2,3,4].forEach(li => {
+    if (isLessonLockedForStudent(s.uid, li)) {
+      lockInfo += `<span class="badge badge-red" style="font-size:9px">L${li+1} Locked</span> `;
+    }
+  });
+
+  return `
+  <div class="rpt-card">
+    <div class="rpt-head">
+      <div>
+        <div class="rpt-ttl">${Security.esc(s.name)}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px">@${Security.esc(s.username)} &nbsp;·&nbsp;
+          ${s.active!==false?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}
+          &nbsp;<span class="rpt-insight ${actClass}" style="display:inline;padding:1px 6px;border:none;font-size:11px">${actStatus}</span>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:24px;font-weight:900;color:var(--amber)">${overallPct}%</div>
+        <div style="font-size:10px;color:var(--txt3)">Overall</div>
+      </div>
+    </div>
+
+    <div class="rpt-metrics">
+      <div class="rpt-metric">
+        <div class="rpt-metric-val">${lessDone}/${totalLessons}</div>
+        <div class="rpt-metric-lbl">Lessons Done</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val">${pracScore !== null ? pracScore+'%' : '—'}</div>
+        <div class="rpt-metric-lbl">Practise Score</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val">${pracPassed ? '🏆' : pracScore !== null ? '⚠' : '—'}</div>
+        <div class="rpt-metric-lbl">${pracPassed ? 'Certified' : pracScore !== null ? 'Not Passed' : 'Not Attempted'}</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val" style="font-size:13px">${lastAccess ? lastAccess.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}) : '—'}</div>
+        <div class="rpt-metric-lbl">Last Login</div>
+      </div>
+      <div class="rpt-metric">
+        <div class="rpt-metric-val" style="font-size:13px">${lastAccess ? lastAccess.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '—'}</div>
+        <div class="rpt-metric-lbl">Login Time</div>
+      </div>
+    </div>
+
+    ${lockInfo ? `<div style="margin-bottom:10px">${lockInfo}</div>` : ''}
+
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;color:var(--txt3);margin-bottom:7px">Lesson Progress</div>
+    ${lessonStats.map(l => `
+    <div class="rpt-lesson-row">
+      <div style="width:130px;font-size:12px;color:var(--txt)">L${l.li+1}: ${Security.esc(l.name)}</div>
+      <div class="rpt-ex-bar"><div class="rpt-ex-fill" style="width:${l.pct}%"></div></div>
+      <div style="width:70px;text-align:right;font-size:11px;color:var(--txt3)">${l.done}/${l.cnt} ex</div>
+      <div style="width:50px;text-align:right;font-size:11.5px;font-weight:700;color:${l.pct===100?'var(--green)':l.pct>0?'var(--amber)':'var(--txt4)'}">${l.pct}%</div>
+      <div style="width:90px;text-align:right">${l.isDone?'<span class="badge badge-green">✓ Done</span>':l.done>0?'<span class="badge badge-blue">In Progress</span>':'<span style="font-size:10px;color:var(--txt4)">Not started</span>'}</div>
+    </div>`).join('')}
+
+    ${excelled.length ? `
+    <div class="rpt-insight good" style="margin-top:10px">
+      <strong>⭐ Areas Excelled:</strong> ${excelled.map(l=>`${Security.esc(l.name)} (100%)`).join(', ')}
+    </div>` : ''}
+
+    ${improvement.length ? `
+    <div class="rpt-insight imp">
+      <strong>📈 Areas for Improvement:</strong> ${improvement.map(l=>`${Security.esc(l.name)} (${l.pct}%)`).join(', ')}
+      — These lessons have exercises the student hasn't completed yet.
+    </div>` : ''}
+
+    ${notStarted.length && lessDone < 4 ? `
+    <div class="rpt-insight warn">
+      <strong>⏳ Not Yet Started:</strong> ${notStarted.map(l=>Security.esc(l.name)).join(', ')}
+    </div>` : ''}
+
+    ${!p.lastAccess ? `
+    <div class="rpt-insight warn">
+      <strong>⚠ Engagement:</strong> This student has not logged in yet.
+    </div>` : ''}
+
+    ${pracScore !== null && !pracPassed ? `
+    <div class="rpt-insight imp">
+      <strong>📝 Practise Attempt:</strong> Scored ${pracScore}% — needs 100% to earn a certificate. ${pracScore >= 60 ? 'Close — encourage another attempt.' : 'Review lessons before retrying.'}
+    </div>` : ''}
+
+    ${pracPassed ? `
+    <div class="rpt-insight good">
+      <strong>🏆 Certificate Earned:</strong> This student achieved 100% on the Practise assessment and qualifies for a certificate.
+    </div>` : ''}
+  </div>`;
+}
+
+/* ── Admin Reports section ── */
+window.admReports = function(body) {
+  const students = getStudents();
+  const now = new Date();
+
+  // Aggregate stats
+  const totalStus    = students.length;
+  const certified    = students.filter(s => s.progress?.practisePassed).length;
+  const inProgress   = students.filter(s => s.progress?.lastAccess && !s.progress?.practisePassed).length;
+  const notStarted   = students.filter(s => !s.progress?.lastAccess).length;
+  const avgPct       = students.length ? Math.round(students.reduce((sum,s) => {
+    const p=s.progress||{}; const comp=p.completed||[];
+    return sum + (comp.filter(x=>x<4).length+(p.practisePassed?1:0))/5*100;
+  }, 0) / students.length) : 0;
+
+  // Top performers
+  const top = [...students].sort((a,b)=>{
+    const pa=a.progress||{}, pb=b.progress||{};
+    const sa=(pa.completed||[]).filter(x=>x<4).length+(pa.practisePassed?1:0);
+    const sb=(pb.completed||[]).filter(x=>x<4).length+(pb.practisePassed?1:0);
+    return sb-sa;
+  }).slice(0,5);
+
+  // Recent activity (last 7 days)
+  const sevenDaysAgo = now - 7*864e5;
+  const recentlyActive = students.filter(s => s.progress?.lastAccess && new Date(s.progress.lastAccess) > sevenDaysAgo);
+
+  const stuTableRows = students.map((s,i) => {
+    const p = s.progress||{};
+    const comp = p.completed||[];
+    const lessDone = comp.filter(x=>x<4).length;
+    const pct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
+    const last = p.lastAccess ? new Date(p.lastAccess).toLocaleDateString('en-GB') : '—';
+    const lastTime = p.lastAccess ? new Date(p.lastAccess).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}) : '';
+    const pracScore = p.practiseScore!=null?Math.round(p.practiseScore*100)+'%':'—';
+    const status = p.practisePassed?'<span class="badge badge-green">✅ Certified</span>'
+                 : p.lastAccess?'<span class="badge badge-blue">In Progress</span>'
+                 : '<span style="color:var(--txt4);font-size:10px">Not Started</span>';
+    return `<tr>
+      <td>${i+1}</td>
+      <td><strong>${Security.esc(s.name)}</strong></td>
+      <td style="font-family:var(--mono);font-size:11px">${Security.esc(s.username)}</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div style="width:60px;height:5px;background:var(--bg5);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:linear-gradient(90deg,var(--amber),var(--green))"></div></div><span style="font-size:11px;color:var(--txt3)">${pct}%</span></div></td>
+      <td>${[0,1,2,3].map(li=>`<span class="badge ${comp.includes(li)?'badge-green':'badge-red'}" style="font-size:8px">L${li+1}</span>`).join(' ')}</td>
+      <td style="font-size:11px">${pracScore}</td>
+      <td style="font-size:11px">${Security.esc(last)} ${lastTime?`<span style="color:var(--txt4)">${lastTime}</span>`:''}</td>
+      <td>${status}</td>
+      <td><button class="btn btn-xs btn-blue" onclick="viewStudentReport('${Security.esc(s.uid)}')">📋 Full Report</button></td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:18px">
+      ${[
+        {v:totalStus,l:'Total Students',c:'var(--blue)'},
+        {v:certified+'',l:'Certified',c:'var(--green)'},
+        {v:inProgress+'',l:'In Progress',c:'var(--amber)'},
+        {v:notStarted+'',l:'Not Started',c:'var(--red)'},
+        {v:recentlyActive.length+'',l:'Active (7d)',c:'var(--purple)'},
+        {v:avgPct+'%',l:'Avg Progress',c:'var(--amber)'},
+      ].map(m=>`<div class="rpt-metric"><div class="rpt-metric-val" style="color:${m.c}">${m.v}</div><div class="rpt-metric-lbl">${m.l}</div></div>`).join('')}
+    </div>
+
+    <div class="scard">
+      <div class="scard-ttl">📊 All Students — Summary Report
+        <button class="btn btn-xs btn-green" style="margin-left:auto" onclick="exportAllReportsCSV()">📥 Export CSV</button>
+        <button class="btn btn-xs btn-blue" onclick="exportAllReportsPDF()">📄 Export PDF</button>
+      </div>
+      <div class="rpt-tbl-wrap">
+      <table class="dt">
+        <thead><tr><th>#</th><th>Name</th><th>Username</th><th>Progress</th><th>Lessons</th><th>Practise</th><th>Last Login</th><th>Status</th><th>Report</th></tr></thead>
+        <tbody>${stuTableRows}</tbody>
+      </table>
+      </div>
+    </div>
+
+    <div class="scard">
+      <div class="scard-ttl">🏆 Top Performers</div>
+      ${top.map((s,i)=>{
+        const p=s.progress||{};const comp=p.completed||[];
+        const pct=Math.round(((comp.filter(x=>x<4).length+(p.practisePassed?1:0))/5)*100);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+          <div style="width:20px;font-weight:800;color:var(--amber)">#${i+1}</div>
+          <div style="flex:1;font-size:12.5px;font-weight:600">${Security.esc(s.name)}</div>
+          <div style="font-size:12px;color:var(--txt3)">${pct}%</div>
+          ${p.practisePassed?'<span class="badge badge-amber">🏆</span>':''}
+        </div>`;
+      }).join('')}
+    </div>`;
+};
+
+window.viewStudentReport = function(uid) {
+  const s = findUser(uid); if (!s) return;
+  const ttl = document.getElementById('mReportName'); if(ttl) ttl.textContent = s.name;
+  const body = document.getElementById('mReportBody'); if(!body) return;
+  body.innerHTML = buildStudentReport(s);
+  // store uid for PDF export
+  body.dataset.uid = uid;
+  openM('mStudentReport');
+};
+
+/* ── jsPDF color helpers — avoids 'Invalid argument' errors ────────── */
+function _fc(doc, r, g, b) { doc.setFillColor(Math.round(r), Math.round(g), Math.round(b)); }
+function _tc(doc, r, g, b) { doc.setTextColor(Math.round(r), Math.round(g), Math.round(b)); }
+function _dc(doc, r, g, b) { doc.setDrawColor(Math.round(r), Math.round(g), Math.round(b)); }
+function _fca(doc, a)      { _fc(doc, a[0], a[1], a[2]); }
+function _tca(doc, a)      { _tc(doc, a[0], a[1], a[2]); }
+function _dca(doc, a)      { _dc(doc, a[0], a[1], a[2]); }
+function _fcam(doc, a, f)  { _fc(doc, a[0]*f, a[1]*f, a[2]*f); }  // multiply
+function _fcao(doc, a, o)  { _fc(doc, a[0]*0.06+o, a[1]*0.06+o, a[2]*0.06+o); }
+function _dcan(doc, a, f)  { _dc(doc, a[0]*f, a[1]*f, a[2]*f); }
+
+window.exportReportPDF = function() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    toast('PDF library not loaded yet — please wait and try again.', 'err'); return;
+  }
+  const body = document.getElementById('mReportBody');
+  if (!body) { toast('Report not open.', 'err'); return; }
+  const uid = body.dataset.uid;
+  if (!uid) { toast('No student selected.', 'err'); return; }
+  const s = findUser(uid);
+  if (!s) { toast('Student not found.', 'err'); return; }
+  try { _buildSingleStudentPDF(s); toast('📋 Report downloaded!'); }
+  catch(e) { console.error('[CodeClub] PDF error:', e); toast('PDF failed: ' + e.message, 'err'); }
+};
+
+/* ═══ SHARED DRAWING HELPERS ═══════════════════════════════════════════ */
+function _pdfHeader(doc, W, title, subtitle) {
+  _fc(doc,10,14,22); doc.rect(0,0,W,32,'F');
+  _fc(doc,245,166,35); doc.rect(0,30,W,1.5,'F');
+  _fc(doc,245,166,35); doc.rect(0,0,3,32,'F');
+  _tc(doc,245,166,35); doc.setFontSize(14); doc.setFont('helvetica','bold');
+  doc.text(title, 10, 14);
+  _tc(doc,143,163,188); doc.setFontSize(8.5); doc.setFont('helvetica','normal');
+  doc.text(subtitle, 10, 23);
+  _tc(doc,90,112,144); doc.setFontSize(7.5);
+  doc.text('Generated: '+new Date().toLocaleString('en-GB'), W-8, 23, {align:'right'});
+}
+
+function _pdfFooter(doc, W, H, pageNum, totalPages, studentName) {
+  _fc(doc,10,14,22); doc.rect(0,H-10,W,10,'F');
+  _fc(doc,245,166,35); doc.rect(0,H-11,W,1,'F');
+  _tc(doc,90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  doc.text('Code Club · SQL Fundamentals · Confidential', 8, H-4);
+  if (studentName) doc.text('Student: '+studentName, W/2, H-4, {align:'center'});
+  doc.text('Page '+pageNum+' of '+totalPages, W-8, H-4, {align:'right'});
+}
+
+function _pdfSectionTitle(doc, mar, y, text, col) {
+  const r=col[0], g=col[1], b=col[2];
+  _tc(doc,r,g,b); doc.setFontSize(9.5); doc.setFont('helvetica','bold');
+  _dc(doc,r,g,b); doc.setLineWidth(0.5);
+  doc.line(mar, y+5, mar+3, y+5);
+  doc.text(text, mar+6, y+5);
+  return y+10;
+}
+
+function _pdfInfoRow(doc, mar, y, W, label, value, vc) {
+  _tc(doc,90,112,144); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text(label, mar, y);
+  if(vc) _tca(doc,vc); else _tc(doc,220,232,245);
+  doc.setFont('helvetica','bold');
+  doc.text(String(value||'—'), mar+60, y);
+  return y+5.5;
+}
+
+function _pdfProgressBar(doc, x, y, width, height, pct, colFull, colEmpty) {
+  const ef=colEmpty||[30,38,52], ff=colFull||[245,166,35];
+  _fca(doc,ef); doc.roundedRect(x,y,width,height,1,1,'F');
+  if(pct>0){ const fw=Math.max(2,(pct/100)*width); _fca(doc,ff); doc.roundedRect(x,y,fw,height,1,1,'F'); }
+}
+
+function _pdfStatsBox(doc, x, y, w, h, value, label, vc) {
+  _fc(doc,18,24,36); doc.roundedRect(x,y,w,h,2,2,'F');
+  _dc(doc,40,54,78); doc.setLineWidth(0.3); doc.roundedRect(x,y,w,h,2,2,'S');
+  if(vc) _tca(doc,vc); else _tc(doc,245,166,35);
+  doc.setFontSize(16); doc.setFont('helvetica','bold');
+  doc.text(String(value), x+w/2, y+h*0.52, {align:'center'});
+  _tc(doc,90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+  doc.text(label.toUpperCase(), x+w/2, y+h*0.82, {align:'center'});
+}
+
+/* ═══ SINGLE STUDENT REPORT ════════════════════════════════════════════ */
+function _buildSingleStudentPDF(s) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const W=210, H=297, mar=14;
+  _buildStudentPageSet(doc, s, W, H, mar);
+  const totalPages = doc.internal.getNumberOfPages();
+  for(let pg=1;pg<=totalPages;pg++){ doc.setPage(pg); _pdfFooter(doc,W,H,pg,totalPages,s.name); }
+  doc.save('CodeClub_Report_'+s.name.replace(/\W+/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+}
+
+/* ═══ DRAWS ONE STUDENT'S PAGES INTO doc ════════════════════════════════ */
+function _buildStudentPageSet(doc, s, W, H, mar) {
+  const p      = normalizeProgress(s.progress);
+  const comp   = p.completed||[];
+  const exR    = p.exResults||{};
+  const lastDT = p.lastAccess ? new Date(p.lastAccess) : null;
+  const lessDone   = comp.filter(x=>x<4).length;
+  const overallPct = Math.round((lessDone+(p.practisePassed?1:0))/5*100);
+  const pracScore  = p.practiseScore!=null ? Math.round(p.practiseScore*100) : null;
+  const totalEx    = LESSON_EX_COUNTS.reduce((a,b)=>a+b,0);
+  let   completedEx=0;
+  LESSON_NAMES.forEach((_,li)=>{ for(let j=0;j<LESSON_EX_COUNTS[li];j++) if(exR[li+'_'+j]) completedEx++; });
+  const exPct     = Math.round(completedEx/totalEx*100);
+  const daysSince = lastDT ? Math.floor((Date.now()-lastDT)/864e5) : null;
+  const lStats    = LESSON_NAMES.map((name,li)=>{
+    const cnt=LESSON_EX_COUNTS[li]; let done=0;
+    for(let j=0;j<cnt;j++) if(exR[li+'_'+j]) done++;
+    return {li,name,cnt,done,pct:cnt?Math.round(done/cnt*100):0, isDone:comp.includes(li)};
+  });
+  const excelled  = lStats.filter(l=>l.pct===100&&l.cnt>0);
+  const needsWork = lStats.filter(l=>l.done>0&&l.pct<80);
+  const notStarted= lStats.filter(l=>l.done===0&&!l.isDone);
+
+  // ─── PAGE 1: HEADER + PROFILE + METRICS + ACTIVITY ───────────────────
+  _pdfHeader(doc, W, 'CODE CLUB — Student Progress Report', 'SQL Fundamentals Course · Detailed Assessment');
+  let y=38;
+
+  // Profile card
+  _fc(doc,15,20,30); doc.roundedRect(mar,y,W-mar*2,36,3,3,'F');
+  _dc(doc,245,166,35); doc.setLineWidth(0.4); doc.roundedRect(mar,y,W-mar*2,36,3,3,'S');
+  _fc(doc,30,45,70); doc.circle(mar+14,y+18,10,'F');
+  _tc(doc,245,166,35); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text(s.name.charAt(0), mar+14, y+21, {align:'center'});
+  _tc(doc,220,232,245); doc.setFontSize(12); doc.setFont('helvetica','bold');
+  doc.text(s.name, mar+28, y+12);
+  _tc(doc,143,163,188); doc.setFontSize(8); doc.setFont('helvetica','normal');
+  doc.text('@'+s.username, mar+28, y+19);
+  if(s.active!==false) _tc(doc,62,207,110); else _tc(doc,245,85,90);
+  doc.text('Status: '+(s.active!==false?'Active':'Inactive'), mar+28, y+26);
+  _tc(doc,143,163,188); doc.setFontSize(8);
+  doc.text('Report: '+new Date().toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}), W-mar-2, y+12, {align:'right'});
+  y+=42;
+
+  // Metric boxes
+  const boxes=[
+    {v:overallPct+'%', l:'Overall',   c:[245,166,35]},
+    {v:lessDone+'/4',  l:'Lessons',   c:lessDone===4?[62,207,110]:[91,156,246]},
+    {v:exPct+'%',      l:'Exercises', c:exPct===100?[62,207,110]:exPct>50?[245,166,35]:[245,85,90]},
+    {v:pracScore!=null?pracScore+'%':'—', l:'Practise', c:p.practisePassed?[62,207,110]:pracScore!=null?[245,85,90]:[90,112,144]},
+    {v:p.practisePassed?'YES':'NO',  l:'Certified', c:p.practisePassed?[62,207,110]:[90,112,144]},
+  ];
+  const bxW=30,bxH=20,bxG=4,totalBW=boxes.length*(bxW+bxG)-bxG;
+  let bx=mar+(W-mar*2-totalBW)/2;
+  boxes.forEach(b=>{ _pdfStatsBox(doc,bx,y,bxW,bxH,b.v,b.l,b.c); bx+=bxW+bxG; });
+  y+=bxH+7;
+
+  // Activity section
+  y=_pdfSectionTitle(doc,mar,y,'Login & Activity',[91,156,246]);
+  _fc(doc,13,18,28); doc.roundedRect(mar,y,W-mar*2,24,2,2,'F');
+  let iy=y+6;
+  const lastStr=lastDT?lastDT.toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'})+' at '+lastDT.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'Never logged in';
+  const lastCol=lastDT?[220,232,245]:[245,85,90];
+  iy=_pdfInfoRow(doc,mar+5,iy,W,'Last Login:', lastStr, lastCol);
+  const actStr=daysSince===null?'Never accessed':daysSince===0?'Active today':daysSince===1?'Active yesterday':'Inactive for '+daysSince+' days';
+  const actCol=daysSince===null||daysSince>7?[245,85,90]:daysSince>3?[245,166,35]:[62,207,110];
+  iy=_pdfInfoRow(doc,mar+5,iy,W,'Engagement:', actStr, actCol);
+  iy=_pdfInfoRow(doc,mar+5,iy,W,'Course Progress:', overallPct+'% complete ('+lessDone+' of 4 lessons done)', [220,232,245]);
+  y+=30;
+
+  // ─── LESSON PROGRESS TABLE ────────────────────────────────────────────
+  y=_pdfSectionTitle(doc,mar,y,'Lesson Progress',[245,166,35]);
+  _fc(doc,20,28,42); doc.rect(mar,y,W-mar*2,6.5,'F');
+  _tc(doc,91,156,246); doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+  const lCols=[56,25,22,22,27]; let lx=mar+3;
+  ['Lesson','Exercises','Score','Status','Progress'].forEach((h,i)=>{doc.text(h,lx,y+4.5);lx+=lCols[i];});
+  y+=6.5;
+
+  lStats.forEach((ls,ri)=>{
+    if(ri%2===0) _fc(doc,16,22,33); else _fc(doc,13,18,28);
+    doc.rect(mar,y,W-mar*2,7.5,'F');
+    lx=mar+3;
+    _tc(doc,220,232,245); doc.setFontSize(7.5); doc.setFont('helvetica','normal');
+    doc.text('L'+(ls.li+1)+': '+ls.name, lx, y+5); lx+=lCols[0];
+    doc.text(ls.done+'/'+ls.cnt, lx, y+5); lx+=lCols[1];
+    if(ls.pct===100) _tc(doc,62,207,110); else if(ls.pct>0) _tc(doc,245,166,35); else _tc(doc,90,112,144);
+    doc.setFont('helvetica','bold');
+    doc.text(ls.pct+'%', lx, y+5); lx+=lCols[2];
+    const stT=ls.isDone?'Complete':ls.done>0?'In Progress':'Not Started';
+    if(ls.isDone) _tc(doc,62,207,110); else if(ls.done>0) _tc(doc,91,156,246); else _tc(doc,90,112,144);
+    doc.setFontSize(6.8);
+    doc.text(stT, lx, y+5); lx+=lCols[3];
+    _pdfProgressBar(doc,lx,y+2.5,lCols[4]-3,3,ls.pct,
+      ls.isDone?[62,207,110]:[245,166,35], [22,32,48]);
+    y+=7.5;
+  });
+  y+=6;
+
+  // ─── EXERCISE RESULTS (all lessons) ────────────────────────────────────
+  if(y>H-50){ doc.addPage(); y=mar+4; }
+  y=_pdfSectionTitle(doc,mar,y,'Exercise Results — All Lessons',[185,130,245]);
+
+  lStats.forEach(ls=>{
+    if(y>H-28){ doc.addPage(); y=mar+4; }
+    _fc(doc,20,15,35); doc.rect(mar,y,W-mar*2,5.5,'F');
+    _tc(doc,185,130,245); doc.setFontSize(7); doc.setFont('helvetica','bold');
+    doc.text('L'+(ls.li+1)+': '+ls.name+'  ·  '+ls.done+'/'+ls.cnt+' passed  ·  '+ls.pct+'%', mar+3, y+4);
+    y+=5.5;
+    let px=mar+3;
+    for(let j=0;j<ls.cnt;j++){
+      const ok=!!exR[ls.li+'_'+j];
+      const pR=ok?62:245, pG=ok?207:85, pB=ok?110:90;
+      const txt='Q'+(j+1)+': '+(ok?'Pass':'Fail');
+      const tw=doc.getTextWidth(txt)+6;
+      if(px+tw>W-mar){ px=mar+3; y+=6; if(y>H-20){doc.addPage();y=mar+4;} }
+      _fc(doc, pR*0.1+5, pG*0.1+5, pB*0.1+5);
+      _dc(doc, pR*0.4, pG*0.4, pB*0.4);
+      doc.setLineWidth(0.25);
+      doc.roundedRect(px,y,tw,5,1.2,1.2,'FD');
+      _tc(doc,pR,pG,pB);
+      doc.setFontSize(6.2); doc.setFont('helvetica',ok?'bold':'normal');
+      doc.text(txt, px+tw/2, y+3.4, {align:'center'});
+      px+=tw+2;
+    }
+    y+=7;
+  });
+
+  // ─── FINAL ASSESSMENT ─────────────────────────────────────────────────
+  if(y>H-34){ doc.addPage(); y=mar+4; }
+  y=_pdfSectionTitle(doc,mar,y,'Final Assessment (Practise)',[245,166,35]);
+  _fc(doc,13,18,28); doc.roundedRect(mar,y,W-mar*2,pracScore!=null?24:12,2,2,'F');
+  let py=y+5;
+  py=_pdfInfoRow(doc,mar+5,py,W,'Attempted:', pracScore!=null?'Yes':'No');
+  if(pracScore!=null){
+    py=_pdfInfoRow(doc,mar+5,py,W,'Score:', pracScore+'%', p.practisePassed?[62,207,110]:[245,85,90]);
+    py=_pdfInfoRow(doc,mar+5,py,W,'Certificate:', p.practisePassed?'Earned ✓ — eligible for Certificate of Completion':'Not yet — 100% required to pass', p.practisePassed?[62,207,110]:[245,166,35]);
+    _pdfProgressBar(doc,mar+5,py,W-mar*2-10,4,pracScore, p.practisePassed?[62,207,110]:[245,85,90],[22,32,48]);
+    py+=7;
+  }
+  y=py+4;
+
+  // ─── INSIGHTS & RECOMMENDATIONS ───────────────────────────────────────
+  if(y>H-55){ doc.addPage(); y=mar+4; }
+  y=_pdfSectionTitle(doc,mar,y,'Insights & Recommendations',[62,207,110]);
+
+  const ins2=[];
+  if(overallPct===100) ins2.push({c:[62,207,110], icon:'★', t:'Outstanding Performance', d:'This student has completed every lesson and all exercises. An excellent achievement. Certificate has been earned.'});
+  if(excelled.length)  ins2.push({c:[62,207,110], icon:'✓', t:'Areas Excelled', d:excelled.map(l=>'L'+(l.li+1)+' '+l.name+': 100% ('+l.done+'/'+l.cnt+' exercises)').join(' · ')});
+  if(needsWork.length) ins2.push({c:[245,166,35], icon:'△', t:'Areas for Improvement', d:needsWork.map(l=>'L'+(l.li+1)+' '+l.name+': '+l.pct+'% — '+l.cnt-l.done+' exercise(s) remaining').join(' · ')+'. Review and retry the incomplete exercises.'});
+  if(notStarted.length&&lessDone<4) ins2.push({c:[245,166,35], icon:'○', t:'Lessons Not Yet Started', d:notStarted.map(l=>l.name).join(', ')+'. Student should be encouraged to continue.'});
+  if(!lastDT)                ins2.push({c:[245,85,90], icon:'!', t:'No Login Detected', d:'This student has never logged into the platform. Please confirm they have received their login credentials.'});
+  else if(daysSince>14)      ins2.push({c:[245,85,90], icon:'!', t:'Inactive for '+daysSince+' Days', d:'Last login was '+lastDT.toLocaleDateString('en-GB')+'. Student may need a follow-up or check-in.'});
+  else if(daysSince>7)       ins2.push({c:[245,166,35], icon:'△', t:'Not Active Recently ('+daysSince+'d)', d:'Student has not logged in for over a week. Consider a prompt to re-engage.'});
+  if(pracScore!=null&&!p.practisePassed) ins2.push({c:[245,166,35], icon:'△', t:'Practise Score '+pracScore+'% — Not Yet Certified',
+    d:pracScore>=80?'Very close to passing! Encourage one more attempt focusing on the failed questions.':pracScore>=50?'Solid progress. Review the failed exercises and retry the assessment.':'Student needs to revisit the lesson material before attempting the assessment again.'});
+  if(p.practisePassed) ins2.push({c:[62,207,110], icon:'★', t:'Certificate Earned', d:'This student achieved 100% on the final assessment and is fully eligible for a Certificate of Completion.'});
+
+  ins2.forEach(ins=>{
+    const lines=doc.splitTextToSize(ins.d, W-mar*2-14);
+    const bH=7+lines.length*4.2;
+    if(y+bH>H-14){ doc.addPage(); y=mar+4; }
+    _fc(doc, ins.c[0]*0.06+7, ins.c[1]*0.06+7, ins.c[2]*0.06+7);
+    doc.roundedRect(mar,y,W-mar*2,bH,2,2,'F');
+    _fc(doc,ins.c[0],ins.c[1],ins.c[2]); doc.rect(mar,y,2,bH,'F');
+    _tc(doc,ins.c[0],ins.c[1],ins.c[2]);
+    doc.setFontSize(7.5); doc.setFont('helvetica','bold');
+    doc.text(ins.icon+'  '+ins.t, mar+5, y+5.5);
+    _tc(doc,170,185,205); doc.setFont('helvetica','normal'); doc.setFontSize(7);
+    lines.forEach((ln,li)=>doc.text(ln, mar+5, y+10+li*4.2));
+    y+=bH+4;
+  });
+}
+
+/* ═══ BULK CLASS REPORT ════════════════════════════════════════════════ */
+window.exportAllReportsPDF = function() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    toast('PDF library not loaded yet — please wait and try again.', 'err'); return;
+  }
+  const students = getStudents();
+  if (!students.length) { toast('No students found.', 'warn'); return; }
+  toast('Building PDF for '+students.length+' students… please wait ⏳', 'info');
+  try {
+    const { jsPDF } = window.jspdf;
+    const W=210, H=297, mar=14;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+    // ── Cover page ──────────────────────────────────────────────────────
+    _fc(doc,10,14,22); doc.rect(0,0,W,H,'F');
+    _fc(doc,245,166,35); doc.rect(0,H*0.38,W,2,'F');
+    _fc(doc,245,166,35); doc.rect(0,H*0.38+3.5,W,0.5,'F');
+    _fc(doc,245,166,35); doc.roundedRect(W/2-20,H*0.23,40,40,5,5,'F');
+    _tc(doc,10,14,22); doc.setFontSize(26); doc.setFont('helvetica','bold');
+    doc.text('</>', W/2, H*0.23+26, {align:'center'});
+    _tc(doc,245,166,35); doc.setFontSize(28); doc.setFont('helvetica','bold');
+    doc.text('CODE CLUB', W/2, H*0.44, {align:'center'});
+    _tc(doc,220,232,245); doc.setFontSize(13); doc.setFont('helvetica','normal');
+    doc.text('SQL Fundamentals Course', W/2, H*0.44+10, {align:'center'});
+    _tc(doc,143,163,188); doc.setFontSize(11);
+    doc.text('Full Class Progress Reports', W/2, H*0.5, {align:'center'});
+    _tc(doc,143,163,188); doc.setFontSize(9);
+    doc.text('Each student has a full detailed report on the following pages', W/2, H*0.5+8, {align:'center'});
+
+    // Stats strip
+    const cert=students.filter(s=>s.progress&&s.progress.practisePassed).length;
+    const activeCount=students.filter(s=>s.progress&&s.progress.lastAccess).length;
+    const avgO=students.length?Math.round(students.reduce((sm,s)=>{
+      const pp=normalizeProgress(s.progress);const cp=pp.completed||[];
+      return sm+(cp.filter(x=>x<4).length+(pp.practisePassed?1:0))/5*100;
+    },0)/students.length):0;
+    const statsY=H*0.6;
+    const statItems=[[students.length,'Total Students'],[cert,'Certified'],[activeCount,'Logged In'],[avgO+'%','Avg Progress']];
+    const bww=(W-mar*2)/statItems.length-3;
+    statItems.forEach((st,i)=>{
+      const bxx=mar+i*(bww+3);
+      _fc(doc,15,22,36); doc.roundedRect(bxx,statsY,bww,24,2,2,'F');
+      _dc(doc,40,60,90); doc.setLineWidth(0.3); doc.roundedRect(bxx,statsY,bww,24,2,2,'S');
+      _tc(doc,245,166,35); doc.setFontSize(18); doc.setFont('helvetica','bold');
+      doc.text(String(st[0]), bxx+bww/2, statsY+13, {align:'center'});
+      _tc(doc,90,112,144); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+      doc.text(st[1].toUpperCase(), bxx+bww/2, statsY+20, {align:'center'});
+    });
+    _tc(doc,60,80,110); doc.setFontSize(8);
+    doc.text('Generated: '+new Date().toLocaleString('en-GB'), W/2, H-22, {align:'center'});
+    doc.text(students.length+' detailed student report'+(students.length!==1?'s':'')+' follow', W/2, H-15, {align:'center'});
+
+    // ── One full report per student ──────────────────────────────────────
+    students.forEach(s => {
+      doc.addPage();
+      _buildStudentPageSet(doc, s, W, H, mar);
+    });
+
+    // ── Footer on every page ─────────────────────────────────────────────
+    const totalPages=doc.internal.getNumberOfPages();
+    let stuIdx=0;
+    for(let pg=1;pg<=totalPages;pg++){
+      doc.setPage(pg);
+      if(pg===1){
+        _fc(doc,10,14,22); doc.rect(0,H-10,W,10,'F');
+        _tc(doc,60,80,110); doc.setFontSize(6.5); doc.setFont('helvetica','normal');
+        doc.text('Code Club · SQL Fundamentals · Confidential Class Report', W/2, H-4, {align:'center'});
+        doc.text('Page 1 of '+totalPages, W-8, H-4, {align:'right'});
+      } else {
+        // Approximate which student
+        const approxStu = students[Math.min(stuIdx, students.length-1)];
+        _pdfFooter(doc, W, H, pg, totalPages, '');
+      }
+    }
+
+    doc.save('CodeClub_AllReports_'+new Date().toISOString().slice(0,10)+'.pdf');
+    toast('📄 PDF exported — '+students.length+' full student reports!');
+  } catch(e) {
+    console.error('[CodeClub] Bulk PDF error:', e);
+    toast('PDF generation failed: '+e.message, 'err');
+  }
+};
+
+
+
+window.openLessonAccess = function(uid) {
+  const s = findUser(uid); if (!s) return;
+  const ttl = document.getElementById('mLessonAccessName'); if(ttl) ttl.textContent = s.name;
+  const body = document.getElementById('mLessonAccessBody'); if(!body) return;
+  body.dataset.uid = uid;
+
+  const lessons = ['SQL Introduction','SQL Syntax','SQL SELECT','SELECT DISTINCT','PRACTISE'];
+  let html = '<div style="margin-bottom:10px;font-size:12px;color:var(--txt3)">Toggle each lesson — green = student can access, red = blocked for this student. Global locks are shown separately.</div>';
+  html += '<div style="display:flex;flex-direction:column;gap:8px">';
+  lessons.forEach((lbl, li) => {
+    const ov = (_stuOverrides[uid]||{})[`L${li}`];
+    const globalLocked = isGloballyLocked(li);
+    let checked, stateLabel, hint;
+    if (ov === 'unlock') { checked = true; stateLabel = '🔓 Unlocked (override)'; hint='You explicitly unlocked this for this student.'; }
+    else if (ov === 'lock') { checked = false; stateLabel = '🔒 Locked (override)'; hint='You explicitly locked this for this student.'; }
+    else if (globalLocked) { checked = false; stateLabel = '🌍 Globally Locked'; hint='Locked for all students. Unlock globally or use override.'; }
+    else { checked = true; stateLabel = '✅ Open'; hint='Available based on global settings.'; }
+    html += `<div style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:var(--r);background:var(--bg3);border:1.5px solid ${checked?'rgba(62,207,110,.2)':'rgba(245,85,90,.2)'}">
+      <div style="flex:1">
+        <div style="font-size:12.5px;font-weight:700;color:var(--txt)">L${li+1}: ${Security.esc(lbl)}</div>
+        <div style="font-size:11px;color:var(--txt3);margin-top:2px">${stateLabel} — ${hint}</div>
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:${checked?'var(--green)':'var(--red)'}">
+        <input type="checkbox" id="lav-${li}" ${checked?'checked':''} style="width:16px;height:16px;accent-color:var(--amber)">
+        ${checked?'Allow':'Blocked'}
+      </label>
+    </div>`;
+  });
+  html += '</div>';
+  body.innerHTML = html;
+  openM('mLessonAccess');
+};
+
+window.saveLessonAccess = async function() {
+  const body = document.getElementById('mLessonAccessBody'); if(!body) return;
+  const uid = body.dataset.uid;
+  const s = findUser(uid); if (!s) return;
+  const lessons = 5;
+  const updates = {};
+  for (let li=0; li<lessons; li++) {
+    const cb = document.getElementById(`lav-${li}`);
+    if (!cb) continue;
+    const want = cb.checked; // true=accessible, false=blocked
+    const globalLocked = isGloballyLocked(li);
+    if (want) {
+      // Student should have access
+      if (globalLocked) {
+        updates[`students/${uid}/L${li}`] = 'unlock'; // per-student override
+      } else {
+        // No override needed — remove any existing lock override
+        updates[`students/${uid}/L${li}`] = null;
+      }
+    } else {
+      // Student should be blocked
+      updates[`students/${uid}/L${li}`] = 'lock';
+    }
+  }
+  try {
+    for (const [path, val] of Object.entries(updates)) {
+      if (val === null) { await fbDel(`lessonLocks/${path}`); if(_stuOverrides[uid]) delete _stuOverrides[uid][path.split('/').pop()]; }
+      else { await fbSet(`lessonLocks/${path}`, val); if(!_stuOverrides[uid]) _stuOverrides[uid]={}; _stuOverrides[uid][path.split('/').pop()] = val; }
+    }
+    closeM('mLessonAccess');
+    toast(`Lesson access saved for ${Security.esc(s.name)} ✓`);
+    logAct(`Admin updated lesson access for "${Security.esc(s.name)}"`, 'b');
+    renderAdm();
+  } catch(e) { toast('Could not save — check connection.', 'err'); }
 };
 
 /* ═══════════════════════════════════════════════════════
@@ -3457,6 +4566,7 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
       showPg('pg-admin');
       startAdminLiveSync();  // fires fbSub immediately which calls renderAdm()
     startActLogSync();     // live activity log listener
+    startLockSync();       // lesson lock state sync
     } else {
       // Use saved data to start the app instantly, then Firebase live sync
       // will update the cache and re-render once it arrives.
@@ -3522,9 +4632,7 @@ document.getElementById('loginU').addEventListener('keydown',e=>{ if(e.key==='En
 })();
 
 
-/* ═══════════════════════════════════════════════════
-   MOBILE SIDEBAR TOGGLE
-═══════════════════════════════════════════════════ */
+/* ═══ MOBILE SIDEBAR TOGGLE ═══ */
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const ov = document.getElementById('sbOverlay');
@@ -3551,9 +4659,6 @@ function closeAdmSidebar() {
   if (sb) sb.classList.remove('open');
   if (ov) ov.classList.remove('show');
 }
-// Close sidebar when a lesson is selected on mobile
-const _origLoadLesson = loadLesson;
-// Auto-close sidebar on nav item click for mobile
 document.addEventListener('click', function(e) {
   const item = e.target.closest('.sb-item, .adm-ni');
   if (item) { closeSidebar(); closeAdmSidebar(); }
