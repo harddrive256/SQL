@@ -1141,11 +1141,11 @@ window.doLogin = async function() {
       }
     }
 
-    // ALWAYS fall back to DEFAULT_USERS if Firebase didn't find them or timed out
-    // This covers: rules not set, empty DB, no internet, seeding not run yet
+    // Fall back to DEFAULT_USERS ONLY for admin accounts if Firebase is unavailable.
+    // Students must exist in Firebase — deleted students must not be able to log back in.
     if (!matchedUser) {
       const local = DEFAULT_USERS.find(u2 => u2.username === u && u2.password === p);
-      if (local) matchedUser = { ...local };
+      if (local && local.role === 'admin') matchedUser = { ...local };
     }
 
     if (matchedUser && matchedUser.role === 'admin') {
@@ -1156,7 +1156,6 @@ window.doLogin = async function() {
       logAct(`Admin "${Security.esc(u)}" logged in`, 'b');
       showPg('pg-admin');
       startAdminLiveSync(); // fires fbSub immediately which calls renderAdm()
-      startActLogSync();    // live activity log listener
       startLockSync();      // lesson lock state sync
       if (loginBtn) { loginBtn.disabled = false; loginBtn.textContent = 'Sign In →'; }
       return;
@@ -1283,11 +1282,11 @@ function requireSession() {
 ═══════════════════════════════════════════════════════ */
 function startAdminLiveSync() {
   if (_adminUnsubscribe) { try{_adminUnsubscribe();}catch(e){} }
-  // Pre-fill cache with DEFAULT_USERS so admin panel renders instantly
-  if (!Object.keys(_usersCache).length) {
-    DEFAULT_USERS.forEach(u => { _usersCache[u.uid] = { ...u }; });
-  }
-  // Render immediately with whatever is in cache right now
+  // Do NOT pre-fill from DEFAULT_USERS — deleted students would reappear.
+  // Firebase listener below will populate _usersCache and call renderAdm().
+  // Always (re)start the activity log listener here so it works on fresh
+  // login AND on session restore — not just at doLogin() time.
+  startActLogSync();
   renderAdm();
   if (!_fbReady) return;
   try {
