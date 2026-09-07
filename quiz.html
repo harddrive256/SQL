@@ -91,7 +91,75 @@
     @media (max-width: 600px) {
       .matching-container { grid-template-columns: 1fr; }
       .assessment-container { padding: 15px; }
+      .header-stats { gap: 8px !important; }
     }
+
+    /* ===== Header stats: timer, streak, sound ===== */
+    .header-stats { display: flex; align-items: center; gap: 14px; }
+    .stat-pill { display: flex; align-items: center; gap: 5px; background: var(--secondary); border: 1px solid #d0e1f9; border-radius: 20px; padding: 5px 12px; font-size: 0.8rem; font-weight: 700; color: var(--primary-dark); white-space: nowrap; }
+    .stat-pill.streak-hot { background: #fff4e0; border-color: #fcd9a0; color: #b5680a; animation: pulseStreak 0.6s ease; }
+    @keyframes pulseStreak { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
+    .sound-toggle-btn { background: none; border: 1px solid var(--border); border-radius: 20px; width: 34px; height: 34px; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+    .sound-toggle-btn:hover { background: var(--secondary); }
+
+    /* ===== Question navigator dots ===== */
+    .nav-dots { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 18px; }
+    .nav-dot { width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--border); background: #fff; font-size: 0.65rem; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #888; font-weight: 700; transition: 0.15s; flex-shrink: 0; }
+    .nav-dot:hover { transform: scale(1.15); }
+    .nav-dot.current { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(43,92,143,0.18); }
+    .nav-dot.correct { background: var(--success); border-color: var(--success); color: #fff; }
+    .nav-dot.incorrect { background: var(--error); border-color: var(--error); color: #fff; }
+    .nav-dot.unanswered { background: #fff; color: #aaa; }
+
+    /* ===== Answer feedback coloring ===== */
+    .option-btn.correct-answer { border-color: var(--success); background: #e5f9ef; color: #03543f; font-weight: bold; }
+    .option-btn.correct-answer::after { content: " ✓"; font-weight: bold; }
+    .option-btn.wrong-answer { border-color: var(--error); background: #fdeaea; color: #9b1c1c; font-weight: bold; }
+    .option-btn.wrong-answer::after { content: " ✗"; font-weight: bold; }
+    .option-btn.locked { cursor: default; }
+    .option-btn.locked:hover { background: inherit; }
+    .option-btn.faded { opacity: 0.55; }
+
+    .streak-toast { position: fixed; top: 20px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--accent); color: #fff; padding: 8px 18px; border-radius: 20px; font-weight: 700; font-size: 0.9rem; box-shadow: 0 6px 18px rgba(0,0,0,0.2); opacity: 0; z-index: 999; transition: all 0.35s ease; pointer-events: none; }
+    .streak-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ===== Results view extras ===== */
+    .score-circle { position: relative; transition: transform 0.4s ease; }
+    .achievement-banner { text-align: center; background: linear-gradient(135deg, var(--secondary), #fdf6e3); border: 1px solid #f0dca0; border-radius: 12px; padding: 16px; margin-bottom: 25px; }
+    .achievement-banner .badge-emoji { font-size: 2.2rem; display: block; margin-bottom: 4px; }
+    .achievement-banner .badge-title { font-weight: 700; color: var(--primary-dark); font-size: 1.05rem; }
+    .achievement-banner .badge-sub { font-size: 0.85rem; color: #777; margin-top: 3px; }
+
+    .results-actions { display: flex; gap: 12px; justify-content: center; margin-top: 25px; flex-wrap: wrap; }
+
+    .review-toggle { text-align: center; margin: 20px 0; }
+    .review-section { display: none; margin-top: 25px; }
+    .review-filters { display: flex; gap: 8px; justify-content: center; margin-bottom: 18px; flex-wrap: wrap; }
+    .filter-chip { border: 1px solid var(--border); background: #fff; border-radius: 20px; padding: 6px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer; color: #666; }
+    .filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .review-card { border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 14px; }
+    .review-card.is-correct { border-left: 5px solid var(--success); }
+    .review-card.is-incorrect { border-left: 5px solid var(--error); }
+    .review-card .rc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.75rem; color: #888; text-transform: uppercase; font-weight: 700; letter-spacing: 0.4px; }
+    .review-card .rc-status { font-size: 0.8rem; font-weight: 700; }
+    .review-card .rc-status.ok { color: var(--success); }
+    .review-card .rc-status.bad { color: var(--error); }
+    .review-card .rc-title { font-weight: 600; margin-bottom: 8px; }
+    .review-card .rc-answer-line { font-size: 0.85rem; margin: 4px 0; }
+    .review-card .rc-answer-line.your-answer.bad { color: var(--error); }
+    .review-card .rc-answer-line.your-answer.ok { color: var(--success); }
+    .review-card .rc-explain { font-size: 0.85rem; color: #555; background: #f7f9fb; border-radius: 6px; padding: 10px; margin-top: 8px; white-space: pre-line; }
+
+    /* ===== Confetti ===== */
+    #confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; }
+
+    /* ===== Score count-up ===== */
+    .score-circle .number { transition: none; }
+
+    /* ===== Timer pulse when low answered state ===== */
+    .fade-in { animation: fadeInQ 0.28s ease; }
+    @keyframes fadeInQ { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
   </style>
 </head>
 <body>
@@ -102,7 +170,12 @@
       <h1>Mastery SQL Assessment</h1>
       <div class="subtitle">SQL · Lessons 1–10</div>
     </div>
-    <span class="badge" id="level-badge">Level 1: Knowledge</span>
+    <div class="header-stats">
+      <button class="sound-toggle-btn" id="sound-toggle" onclick="toggleSound()" title="Toggle sound">🔊</button>
+      <span class="stat-pill" id="timer-pill">⏱ 0:00</span>
+      <span class="stat-pill" id="streak-pill" style="display:none;">🔥 0</span>
+      <span class="badge" id="level-badge">Level 1: Knowledge</span>
+    </div>
   </header>
 
   <div id="quiz-view">
@@ -114,6 +187,8 @@
       <span id="question-number">Question 1 of 35</span>
       <span id="topic-tag">Topic: SQL Basics</span>
     </div>
+
+    <div class="nav-dots" id="nav-dots"></div>
 
     <div class="question-card" id="question-card">
       <!-- Dynamic Question Content -->
@@ -130,8 +205,8 @@
 
   <div id="results-view" style="display: none;">
     <div class="results-header">
-      <h2>Assessment Completed!</h2>
-      <p style="color: #666; margin-top: 5px;">Here is your performance summary for SQL Lessons 1–10.</p>
+      <h2 id="results-heading">Assessment Completed!</h2>
+      <p style="color: #666; margin-top: 5px;" id="results-sub">Here is your performance summary for SQL Lessons 1–10.</p>
     </div>
 
     <div class="score-circle">
@@ -139,16 +214,34 @@
       <span class="label">Total Score</span>
     </div>
 
+    <div class="achievement-banner" id="achievement-banner">
+      <span class="badge-emoji" id="badge-emoji">🏅</span>
+      <div class="badge-title" id="badge-title">Nice work!</div>
+      <div class="badge-sub" id="badge-sub"></div>
+    </div>
+
     <div class="breakdown-grid">
       <div class="breakdown-card"><div class="val" id="score-raw">0/0</div><div class="lbl">Questions Correct</div></div>
+      <div class="breakdown-card"><div class="val" id="score-time">0:00</div><div class="lbl">Time Taken</div></div>
+      <div class="breakdown-card"><div class="val" id="score-streak">0</div><div class="lbl">Best Streak</div></div>
       <div class="breakdown-card"><div class="val" id="score-knowledge">0%</div><div class="lbl">Knowledge</div></div>
       <div class="breakdown-card"><div class="val" id="score-understanding">0%</div><div class="lbl">Understanding</div></div>
       <div class="breakdown-card"><div class="val" id="score-application">0%</div><div class="lbl">Application</div></div>
       <div class="breakdown-card"><div class="val" id="score-analysis">0%</div><div class="lbl">Analysis & Challenge</div></div>
     </div>
 
-    <div class="teacher-toggle">
-      <button class="btn btn-secondary" onclick="toggleTeacherReport()">Toggle Detailed Teacher Review</button>
+    <div class="review-toggle">
+      <button class="btn btn-secondary" onclick="toggleReview()">📖 Review My Answers</button>
+      <button class="btn btn-secondary" onclick="toggleTeacherReport()">🧑‍🏫 Toggle Teacher Diagnostic Log</button>
+    </div>
+
+    <div class="review-section" id="review-section">
+      <div class="review-filters">
+        <button class="filter-chip active" data-filter="all" onclick="setReviewFilter('all')">All Questions</button>
+        <button class="filter-chip" data-filter="incorrect" onclick="setReviewFilter('incorrect')">❌ Missed Only</button>
+        <button class="filter-chip" data-filter="correct" onclick="setReviewFilter('correct')">✅ Correct Only</button>
+      </div>
+      <div id="review-body"></div>
     </div>
 
     <div class="teacher-report" id="teacher-report">
@@ -161,19 +254,23 @@
             <th>Topic (Lesson)</th>
             <th>Skill Level</th>
             <th>Student Answer</th>
+            <th>Correct Answer</th>
             <th>Result</th>
-            <th>Target Concept</th>
           </tr>
         </thead>
         <tbody id="report-body"></tbody>
       </table>
     </div>
 
-    <div style="text-align: center; margin-top: 25px;">
-      <button class="btn btn-primary" onclick="location.reload()">Restart Assessment</button>
+    <div class="results-actions">
+      <button class="btn btn-primary" onclick="retakeQuiz()">🔄 Retake Full Quiz</button>
+      <button class="btn btn-secondary" id="retry-incorrect-btn" onclick="retryIncorrect()">🎯 Retry Missed Questions Only</button>
     </div>
   </div>
 </div>
+
+<canvas id="confetti-canvas"></canvas>
+<div class="streak-toast" id="streak-toast"></div>
 
 <script>
   // Complete Question Bank for Lessons 1 through 10
@@ -701,31 +798,179 @@
     }
   ];
 
-  // Global State
+  // ===================== Global State =====================
+  const fullQuestionBank = questions;   // preserve original full bank
+  let activeQuestions = questions;      // the set currently being taken (full or practice subset)
+  let isPracticeMode = false;
+  let lastWrongList = [];               // questions missed in the most recently completed session
+
   let currentQIndex = 0;
   let userAnswers = {};
-  let answeredState = {}; // tracks whether a question was submitted
+  let answeredState = {};               // tracks whether a question was submitted, + correctness
+  let maxReached = 0;                   // furthest question index reached, for nav-dot gating
 
-  // Initialize
+  let streak = 0;
+  let bestStreak = 0;
+
+  let soundEnabled = true;
+  let audioCtx = null;
+
+  let startTime = null;
+  let elapsedSeconds = 0;
+  let timerInterval = null;
+
+  let reviewFilter = 'all';
+
+  // ===================== Init =====================
   window.onload = function() {
-    renderQuestion();
+    initSession(fullQuestionBank, false);
   };
 
+  function initSession(list, practice) {
+    activeQuestions = list;
+    isPracticeMode = practice;
+    currentQIndex = 0;
+    userAnswers = {};
+    answeredState = {};
+    maxReached = 0;
+    streak = 0;
+    bestStreak = 0;
+
+    document.getElementById("streak-pill").style.display = "none";
+    document.getElementById("quiz-view").style.display = "block";
+    document.getElementById("results-view").style.display = "none";
+    document.getElementById("teacher-report").style.display = "none";
+    document.getElementById("review-section").style.display = "none";
+
+    buildNavDots();
+    startTimer();
+    renderQuestion();
+  }
+
+  function retakeQuiz() {
+    initSession(fullQuestionBank, false);
+  }
+
+  function retryIncorrect() {
+    if (lastWrongList.length === 0) {
+      alert("Nothing to retry — you got everything right! 🎉");
+      return;
+    }
+    initSession(lastWrongList, true);
+  }
+
+  // ===================== Timer =====================
+  function formatTime(sec) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  }
+
+  function startTimer() {
+    clearInterval(timerInterval);
+    elapsedSeconds = 0;
+    startTime = Date.now();
+    document.getElementById("timer-pill").innerText = `⏱ 0:00`;
+    timerInterval = setInterval(() => {
+      elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+      document.getElementById("timer-pill").innerText = `⏱ ${formatTime(elapsedSeconds)}`;
+    }, 1000);
+  }
+
+  function stopTimer() {
+    clearInterval(timerInterval);
+  }
+
+  // ===================== Sound =====================
+  function toggleSound() {
+    soundEnabled = !soundEnabled;
+    document.getElementById("sound-toggle").innerText = soundEnabled ? "🔊" : "🔇";
+  }
+
+  function playTone(kind) {
+    if (!soundEnabled) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      if (kind === 'correct') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now);
+        osc.frequency.setValueAtTime(783.99, now + 0.11);
+        gain.gain.setValueAtTime(0.15, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+        osc.start(now); osc.stop(now + 0.35);
+      } else if (kind === 'incorrect') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(160, now);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
+      } else if (kind === 'finish') {
+        osc.type = 'triangle';
+        [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
+          osc.frequency.setValueAtTime(f, now + i * 0.12);
+        });
+        gain.gain.setValueAtTime(0.13, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+        osc.start(now); osc.stop(now + 0.6);
+      }
+    } catch (e) { /* audio not available, fail silently */ }
+  }
+
+  // ===================== Nav Dots =====================
+  function buildNavDots() {
+    const wrap = document.getElementById("nav-dots");
+    wrap.innerHTML = activeQuestions.map((q, i) =>
+      `<div class="nav-dot unanswered" id="dot-${i}" onclick="jumpToQuestion(${i})" title="Question ${i + 1}">${i + 1}</div>`
+    ).join('');
+  }
+
+  function updateNavDots() {
+    activeQuestions.forEach((q, i) => {
+      const dot = document.getElementById(`dot-${i}`);
+      if (!dot) return;
+      dot.classList.remove('current', 'correct', 'incorrect', 'unanswered');
+      if (answeredState[q.id]) {
+        dot.classList.add(answeredState[q.id].isCorrect ? 'correct' : 'incorrect');
+      } else {
+        dot.classList.add('unanswered');
+      }
+      if (i === currentQIndex) dot.classList.add('current');
+    });
+  }
+
+  function jumpToQuestion(index) {
+    if (index > maxReached) return; // can't skip ahead of what's been reached
+    currentQIndex = index;
+    renderQuestion();
+  }
+
+  // ===================== Rendering =====================
   function renderQuestion() {
-    const q = questions[currentQIndex];
+    const q = activeQuestions[currentQIndex];
     const card = document.getElementById("question-card");
-    
+    maxReached = Math.max(maxReached, currentQIndex);
+
     // Header updates
-    document.getElementById("level-badge").innerText = q.level;
-    document.getElementById("question-number").innerText = `Question ${currentQIndex + 1} of ${questions.length}`;
+    document.getElementById("level-badge").innerText = isPracticeMode ? "🎯 Practice Round" : q.level;
+    document.getElementById("question-number").innerText = `Question ${currentQIndex + 1} of ${activeQuestions.length}`;
     document.getElementById("topic-tag").innerText = `Lesson: ${q.lesson}`;
-    document.getElementById("progress-bar").style.width = `${((currentQIndex + 1) / questions.length) * 100}%`;
+    document.getElementById("progress-bar").style.width = `${((currentQIndex + 1) / activeQuestions.length) * 100}%`;
 
     // Reset controls
     document.getElementById("feedback-box").style.display = "none";
-    document.getElementById("submit-btn").style.display = "inline-block";
-    document.getElementById("next-btn").style.display = "none";
     document.getElementById("prev-btn").disabled = currentQIndex === 0;
+
+    const isAnswered = !!answeredState[q.id];
+    const autoSubmitType = (q.type === "mcq" || q.type === "tf");
+    document.getElementById("submit-btn").style.display = (autoSubmitType || isAnswered) ? "none" : "inline-block";
+    document.getElementById("next-btn").style.display = isAnswered ? "inline-block" : "none";
+    document.getElementById("next-btn").innerText = currentQIndex === activeQuestions.length - 1 ? "See Results 🏁" : "Next Question →";
 
     let html = `<div class="question-title">${q.title}</div>`;
 
@@ -749,27 +994,46 @@
     if (q.type === "mcq" || q.type === "tf") {
       html += `<div class="options-grid">`;
       q.options.forEach((opt, idx) => {
-        const selected = userAnswers[q.id] === idx ? 'selected' : '';
-        html += `<button class="option-btn ${selected}" onclick="selectMCQ(${idx})"><span>${opt}</span></button>`;
+        let cls = userAnswers[q.id] === idx ? 'selected' : '';
+        let clickAttr = `onclick="selectMCQ(${idx})"`;
+        if (isAnswered) {
+          clickAttr = '';
+          cls += ' locked';
+          if (idx === q.correct) cls += ' correct-answer';
+          else if (idx === userAnswers[q.id]) cls += ' wrong-answer';
+        }
+        html += `<button class="option-btn ${cls}" ${clickAttr}><span>${opt}</span></button>`;
       });
       html += `</div>`;
     } else if (q.type === "multiselect") {
       html += `<div class="options-grid">`;
       q.options.forEach((opt, idx) => {
         const currentArr = userAnswers[q.id] || [];
-        const selected = currentArr.includes(idx) ? 'selected' : '';
-        html += `<button class="option-btn ${selected}" onclick="toggleMultiSelect(${idx})"><span>${opt}</span></button>`;
+        let cls = currentArr.includes(idx) ? 'selected' : '';
+        let clickAttr = `onclick="toggleMultiSelect(${idx})"`;
+        if (isAnswered) {
+          clickAttr = '';
+          cls += ' locked';
+          if (q.correct.includes(idx)) cls += ' correct-answer';
+          else if (currentArr.includes(idx)) cls += ' wrong-answer';
+        }
+        html += `<button class="option-btn ${cls}" ${clickAttr}><span>${opt}</span></button>`;
       });
       html += `</div>`;
     } else if (q.type === "fill" || q.type === "text") {
       const val = userAnswers[q.id] || '';
-      html += `<input type="text" id="text-answer" placeholder="Type your SQL / answer here..." value="${escapeHtml(val)}" oninput="saveTextAnswer(this.value)">`;
+      html += `<input type="text" id="text-answer" placeholder="Type your SQL / answer here..." value="${escapeHtml(val)}" oninput="saveTextAnswer(this.value)" ${isAnswered ? 'disabled' : ''} onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAnswer();}">`;
     } else if (q.type === "matching") {
       html += `<div class="matching-container">`;
       q.pairs.forEach((pair, idx) => {
+        let borderStyle = '';
+        if (isAnswered) {
+          const val = userAnswers[q.id] ? userAnswers[q.id][idx] : '';
+          borderStyle = val === pair.correct ? 'border-color:var(--success);background:#e5f9ef;' : 'border-color:var(--error);background:#fdeaea;';
+        }
         html += `<div class="matching-pair">
           <label>${pair.term}</label>
-          <select class="matching-select" id="match-${idx}" onchange="saveMatchingAnswer()">
+          <select class="matching-select" id="match-${idx}" style="${borderStyle}" onchange="saveMatchingAnswer()" ${isAnswered ? 'disabled' : ''}>
             <option value="">-- Choose matching definition --</option>
             ${q.options.map(o => `<option value="${o}" ${userAnswers[q.id] && userAnswers[q.id][idx] === o ? 'selected' : ''}>${o}</option>`).join('')}
           </select>
@@ -779,28 +1043,31 @@
     }
 
     card.innerHTML = html;
+    card.classList.remove('fade-in');
+    void card.offsetWidth;
+    card.classList.add('fade-in');
 
-    // Restore state if already submitted
-    if (answeredState[q.id]) {
-      showFeedback(answeredState[q.id].isCorrect, answeredState[q.id].feedback);
-      document.getElementById("submit-btn").style.display = "none";
-      document.getElementById("next-btn").style.display = "inline-block";
+    // Restore feedback if already submitted
+    if (isAnswered) {
+      showFeedback(answeredState[q.id].isCorrect, buildFeedbackHtml(q, answeredState[q.id].isCorrect));
     }
+
+    updateNavDots();
   }
 
   function escapeHtml(str) {
-    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   }
 
   function selectMCQ(index) {
-    const q = questions[currentQIndex];
+    const q = activeQuestions[currentQIndex];
     if (answeredState[q.id]) return;
     userAnswers[q.id] = index;
-    renderQuestion();
+    submitAnswer(); // instant feedback — no separate submit step needed for single-answer questions
   }
 
   function toggleMultiSelect(index) {
-    const q = questions[currentQIndex];
+    const q = activeQuestions[currentQIndex];
     if (answeredState[q.id]) return;
     let arr = userAnswers[q.id] || [];
     if (arr.includes(index)) {
@@ -813,12 +1080,12 @@
   }
 
   function saveTextAnswer(val) {
-    const q = questions[currentQIndex];
+    const q = activeQuestions[currentQIndex];
     userAnswers[q.id] = val;
   }
 
   function saveMatchingAnswer() {
-    const q = questions[currentQIndex];
+    const q = activeQuestions[currentQIndex];
     const ans = [];
     q.pairs.forEach((_, idx) => {
       const el = document.getElementById(`match-${idx}`);
@@ -827,8 +1094,28 @@
     userAnswers[q.id] = ans;
   }
 
+  function buildFeedbackHtml(q, isCorrect) {
+    let extra = '';
+    if (!isCorrect) {
+      if (q.type === "fill") {
+        extra = `<div style="margin-top:8px;"><strong>Correct answer:</strong> <code>${escapeHtml(q.correct)}</code></div>`;
+      } else if (q.type === "matching") {
+        const lines = q.pairs.map(p => `${escapeHtml(p.term)} → ${escapeHtml(p.correct)}`).join('<br>');
+        extra = `<div style="margin-top:8px;"><strong>Correct matches:</strong><br>${lines}</div>`;
+      } else if (q.type === "text") {
+        extra = `<div style="margin-top:8px;"><strong>Key elements your answer should include:</strong> ${q.correctKeywords.join(', ')}</div>`;
+      } else if (q.type === "mcq" || q.type === "tf") {
+        extra = `<div style="margin-top:8px;"><strong>Correct answer:</strong> ${escapeHtml(q.options[q.correct])}</div>`;
+      } else if (q.type === "multiselect") {
+        const correctOpts = q.correct.map(i => q.options[i]).join(' • ');
+        extra = `<div style="margin-top:8px;"><strong>Correct answer(s):</strong> ${escapeHtml(correctOpts)}</div>`;
+      }
+    }
+    return `${q.feedback}${extra}`;
+  }
+
   function submitAnswer() {
-    const q = questions[currentQIndex];
+    const q = activeQuestions[currentQIndex];
     const userAns = userAnswers[q.id];
 
     if (userAns === undefined || userAns === '' || (Array.isArray(userAns) && userAns.length === 0)) {
@@ -860,20 +1147,50 @@
       feedback: q.feedback
     };
 
-    showFeedback(isCorrect, q.feedback);
-    document.getElementById("submit-btn").style.display = "none";
-    document.getElementById("next-btn").style.display = "inline-block";
+    // Streak tracking
+    if (isCorrect) {
+      streak++;
+      bestStreak = Math.max(bestStreak, streak);
+      playTone('correct');
+      if (streak >= 3) showStreakToast(streak);
+    } else {
+      streak = 0;
+      playTone('incorrect');
+    }
+    updateStreakPill();
+
+    renderQuestion(); // re-render to lock the question and reveal correct/incorrect coloring
+  }
+
+  function updateStreakPill() {
+    const pill = document.getElementById("streak-pill");
+    if (streak >= 2) {
+      pill.style.display = "inline-flex";
+      pill.innerText = `🔥 ${streak}`;
+      pill.classList.remove('streak-hot');
+      void pill.offsetWidth;
+      pill.classList.add('streak-hot');
+    } else {
+      pill.style.display = "none";
+    }
+  }
+
+  function showStreakToast(n) {
+    const toast = document.getElementById("streak-toast");
+    toast.innerText = `🔥 ${n} in a row! Keep it up!`;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1600);
   }
 
   function showFeedback(isCorrect, msg) {
     const fb = document.getElementById("feedback-box");
     fb.className = `feedback-box ${isCorrect ? 'correct' : 'incorrect'}`;
-    fb.innerHTML = `<strong>${isCorrect ? ' Correct!' : ' Not quite right.'}</strong><br>${msg}`;
+    fb.innerHTML = `<strong>${isCorrect ? '✅ Correct!' : '❌ Not quite right.'}</strong><br>${msg}`;
     fb.style.display = "block";
   }
 
   function nextQuestion() {
-    if (currentQIndex < questions.length - 1) {
+    if (currentQIndex < activeQuestions.length - 1) {
       currentQIndex++;
       renderQuestion();
     } else {
@@ -888,39 +1205,70 @@
     }
   }
 
+  // ===================== Keyboard Shortcuts =====================
+  document.addEventListener('keydown', function(e) {
+    if (document.getElementById("quiz-view").style.display === "none") return;
+    if (e.target && e.target.tagName === 'INPUT') return; // don't hijack typing
+
+    const q = activeQuestions[currentQIndex];
+    if (!q) return;
+
+    if (!answeredState[q.id] && (q.type === "mcq" || q.type === "tf") && /^[1-9]$/.test(e.key)) {
+      const idx = parseInt(e.key, 10) - 1;
+      if (idx < q.options.length) selectMCQ(idx);
+    } else if (e.key === "Enter") {
+      if (document.getElementById("next-btn").style.display !== "none") {
+        nextQuestion();
+      } else if (document.getElementById("submit-btn").style.display !== "none") {
+        submitAnswer();
+      }
+    }
+  });
+
+  // ===================== Results =====================
   function showResults() {
+    stopTimer();
     document.getElementById("quiz-view").style.display = "none";
     document.getElementById("results-view").style.display = "block";
+    document.getElementById("results-heading").innerText = isPracticeMode ? "Practice Round Complete!" : "Assessment Completed!";
+    document.getElementById("results-sub").innerText = isPracticeMode
+      ? "Here's how you did on your missed-question practice round."
+      : "Here is your performance summary for SQL Lessons 1–10.";
 
     let totalCorrect = 0;
     const skillTotals = { Knowledge: { c: 0, t: 0 }, Understanding: { c: 0, t: 0 }, Application: { c: 0, t: 0 }, Analysis: { c: 0, t: 0 } };
     let reportHtml = '';
+    lastWrongList = [];
 
-    questions.forEach((q, idx) => {
+    activeQuestions.forEach((q, idx) => {
       const state = answeredState[q.id] || { isCorrect: false };
       if (state.isCorrect) totalCorrect++;
+      else lastWrongList.push(q);
 
-      // Track skills
       if (skillTotals[q.skill]) {
         skillTotals[q.skill].t++;
         if (state.isCorrect) skillTotals[q.skill].c++;
       }
 
-      // Teacher Report row
-      const uAnsDisplay = Array.isArray(userAnswers[q.id]) ? userAnswers[q.id].join(', ') : (userAnswers[q.id] !== undefined ? userAnswers[q.id] : 'Unanswered');
+      const uAnsDisplay = getAnswerDisplay(q, userAnswers[q.id]);
+      const correctDisplay = getCorrectDisplay(q);
       reportHtml += `<tr>
         <td>${idx + 1}</td>
         <td>${q.lesson}</td>
         <td>${q.skill}</td>
-        <td><code>${escapeHtml(String(uAnsDisplay))}</code></td>
+        <td><code>${escapeHtml(uAnsDisplay)}</code></td>
+        <td><code>${escapeHtml(correctDisplay)}</code></td>
         <td class="${state.isCorrect ? 'status-pass' : 'status-fail'}">${state.isCorrect ? 'PASSED' : 'FAILED'}</td>
-        <td>${q.feedback}</td>
       </tr>`;
     });
 
-    const percent = Math.round((totalCorrect / questions.length) * 100);
-    document.getElementById("total-percent").innerText = `${percent}%`;
-    document.getElementById("score-raw").innerText = `${totalCorrect}/${questions.length}`;
+    const percent = Math.round((totalCorrect / activeQuestions.length) * 100);
+
+    // Animated count-up
+    animateNumber(document.getElementById("total-percent"), percent);
+    document.getElementById("score-raw").innerText = `${totalCorrect}/${activeQuestions.length}`;
+    document.getElementById("score-time").innerText = formatTime(elapsedSeconds);
+    document.getElementById("score-streak").innerText = bestStreak;
 
     const calcSkill = (key) => skillTotals[key].t > 0 ? `${Math.round((skillTotals[key].c / skillTotals[key].t) * 100)}%` : 'N/A';
     document.getElementById("score-knowledge").innerText = calcSkill('Knowledge');
@@ -929,12 +1277,153 @@
     document.getElementById("score-analysis").innerText = calcSkill('Analysis');
 
     document.getElementById("report-body").innerHTML = reportHtml;
+
+    // Achievement badge
+    setAchievementBadge(percent);
+
+    // Retry button visibility
+    const retryBtn = document.getElementById("retry-incorrect-btn");
+    retryBtn.style.display = lastWrongList.length > 0 ? "inline-block" : "none";
+
+    // Review section
+    reviewFilter = 'all';
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === 'all'));
+    renderReview();
+
+    playTone('finish');
+    if (percent >= 60) launchConfetti(percent >= 90 ? 220 : 110);
+  }
+
+  function animateNumber(el, target) {
+    let current = 0;
+    const step = Math.max(1, Math.round(target / 30));
+    const timer = setInterval(() => {
+      current += step;
+      if (current >= target) { current = target; clearInterval(timer); }
+      el.innerText = `${current}%`;
+    }, 20);
+  }
+
+  function setAchievementBadge(percent) {
+    let emoji, title, sub;
+    if (percent >= 90) { emoji = "🏆"; title = "SQL Master!"; sub = "Outstanding mastery of Lessons 1–10."; }
+    else if (percent >= 75) { emoji = "🥇"; title = "Query Pro"; sub = "Strong command of the material — almost perfect!"; }
+    else if (percent >= 60) { emoji = "🥈"; title = "Solid Foundation"; sub = "Good grasp of the basics, with room to sharpen a few concepts."; }
+    else if (percent >= 40) { emoji = "🥉"; title = "Developing Skills"; sub = "You're building real understanding — review the missed topics and try again."; }
+    else { emoji = "📘"; title = "Keep Practicing"; sub = "This is a great starting point. Review the lessons and retake the assessment."; }
+    document.getElementById("badge-emoji").innerText = emoji;
+    document.getElementById("badge-title").innerText = title;
+    document.getElementById("badge-sub").innerText = sub;
+  }
+
+  function getAnswerDisplay(q, ans) {
+    if (ans === undefined || ans === '' || (Array.isArray(ans) && ans.length === 0)) return 'Unanswered';
+    if (q.type === "mcq" || q.type === "tf") return q.options[ans];
+    if (q.type === "multiselect") return ans.map(i => q.options[i]).join(' • ');
+    if (q.type === "matching") return q.pairs.map((p, i) => `${p.term}=${ans[i] || '—'}`).join('; ');
+    return String(ans);
+  }
+
+  function getCorrectDisplay(q) {
+    if (q.type === "mcq" || q.type === "tf") return q.options[q.correct];
+    if (q.type === "multiselect") return q.correct.map(i => q.options[i]).join(' • ');
+    if (q.type === "fill") return q.correct;
+    if (q.type === "matching") return q.pairs.map(p => `${p.term}=${p.correct}`).join('; ');
+    if (q.type === "text") return `Must include: ${q.correctKeywords.join(', ')}`;
+    return '';
   }
 
   function toggleTeacherReport() {
     const rep = document.getElementById("teacher-report");
     rep.style.display = rep.style.display === "block" ? "none" : "block";
   }
+
+  function toggleReview() {
+    const rev = document.getElementById("review-section");
+    rev.style.display = rev.style.display === "block" ? "none" : "block";
+  }
+
+  function setReviewFilter(filter) {
+    reviewFilter = filter;
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.toggle('active', c.dataset.filter === filter));
+    renderReview();
+  }
+
+  function renderReview() {
+    let html = '';
+    activeQuestions.forEach((q, idx) => {
+      const state = answeredState[q.id] || { isCorrect: false };
+      if (reviewFilter === 'correct' && !state.isCorrect) return;
+      if (reviewFilter === 'incorrect' && state.isCorrect) return;
+
+      const yourAns = getAnswerDisplay(q, userAnswers[q.id]);
+      const correctAns = getCorrectDisplay(q);
+
+      html += `<div class="review-card ${state.isCorrect ? 'is-correct' : 'is-incorrect'}">
+        <div class="rc-top">
+          <span>Q${idx + 1} · ${escapeHtml(q.lesson)}</span>
+          <span class="rc-status ${state.isCorrect ? 'ok' : 'bad'}">${state.isCorrect ? '✅ Correct' : '❌ Incorrect'}</span>
+        </div>
+        <div class="rc-title">${q.title}</div>
+        <div class="rc-answer-line your-answer ${state.isCorrect ? 'ok' : 'bad'}"><strong>Your answer:</strong> ${escapeHtml(yourAns)}</div>
+        ${!state.isCorrect ? `<div class="rc-answer-line"><strong>Correct answer:</strong> ${escapeHtml(correctAns)}</div>` : ''}
+        <div class="rc-explain">${q.feedback}</div>
+      </div>`;
+    });
+    document.getElementById("review-body").innerHTML = html || `<p style="text-align:center;color:#888;padding:20px;">No questions match this filter.</p>`;
+  }
+
+  // ===================== Confetti =====================
+  function launchConfetti(count) {
+    const canvas = document.getElementById("confetti-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const ctx = canvas.getContext("2d");
+    const colors = ['#2b5c8f', '#f39c12', '#27ae60', '#e74c3c', '#9b59b6', '#1abc9c'];
+
+    const particles = Array.from({ length: count }, () => ({
+      x: Math.random() * canvas.width,
+      y: -20 - Math.random() * canvas.height * 0.3,
+      w: 6 + Math.random() * 6,
+      h: 8 + Math.random() * 8,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      speedY: 2 + Math.random() * 3,
+      speedX: -1.5 + Math.random() * 3,
+      rotation: Math.random() * 360,
+      rotSpeed: -6 + Math.random() * 12
+    }));
+
+    let frame = 0;
+    const maxFrames = 220;
+
+    function draw() {
+      frame++;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => {
+        p.x += p.speedX;
+        p.y += p.speedY;
+        p.rotation += p.rotSpeed;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      });
+      if (frame < maxFrames) {
+        requestAnimationFrame(draw);
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+
+  window.addEventListener('resize', () => {
+    const canvas = document.getElementById("confetti-canvas");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
 </script>
 </body>
 </html>
