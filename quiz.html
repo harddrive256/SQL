@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cambridge Year 5 SQL Mastery Assessment (Lessons 1–10)</title>
+  <style>
+    :root {
+      --primary: #2b5c8f;
+      --primary-dark: #1e3f63;
+      --secondary: #eef5fc;
+      --accent: #f39c12;
+      --success: #27ae60;
+      --error: #c0392b;
+      --text: #2c3e50;
+      --bg: #f4f7f9;
+      --card-bg: #ffffff;
+      --border: #dcdfe6;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
+
+    .assessment-container { max-width: 900px; margin: 0 auto; background: var(--card-bg); border-radius: var(--radius); box-shadow: 0 4px 15px rgba(0,0,0,0.08); padding: 30px; }
+
+    header { border-bottom: 2px solid var(--secondary); padding-bottom: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center; }
+    header h1 { font-size: 1.5rem; color: var(--primary); }
+    header .subtitle { font-size: 0.9rem; color: #7f8c8d; }
+
+    .progress-bar-container { background: var(--secondary); border-radius: 20px; height: 12px; overflow: hidden; margin-bottom: 20px; border: 1px solid var(--border); }
+    .progress-bar { background: var(--primary); height: 100%; width: 0%; transition: width 0.3s ease; }
+
+    .meta-info { display: flex; justify-content: space-between; font-size: 0.85rem; color: #666; margin-bottom: 15px; font-weight: 600; }
+    .badge { padding: 4px 10px; border-radius: 12px; background: var(--secondary); color: var(--primary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .data-table-container { margin: 15px 0; overflow-x: auto; }
+    table.db-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 10px; background: #fafafa; }
+    table.db-table th { background: var(--primary); color: white; text-align: left; padding: 8px 12px; }
+    table.db-table td { border: 1px solid var(--border); padding: 6px 12px; font-family: 'Courier New', Courier, monospace; }
+    table.db-table caption { font-weight: bold; margin-bottom: 5px; text-align: left; color: var(--primary-dark); }
+
+    .question-card { margin-bottom: 25px; }
+    .question-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; color: var(--text); }
+    .sql-code { background: #282c34; color: #abb2bf; padding: 12px 15px; border-radius: 6px; font-family: 'Courier New', monospace; margin: 10px 0; font-size: 0.95rem; overflow-x: auto; white-space: pre-wrap; }
+
+    .options-grid { display: flex; flex-direction: column; gap: 10px; }
+    .option-btn { background: #fff; border: 2px solid var(--border); border-radius: 8px; padding: 12px 15px; text-align: left; cursor: pointer; transition: all 0.2s; font-size: 0.95rem; display: flex; align-items: center; justify-content: space-between; }
+    .option-btn:hover { border-color: var(--primary); background: var(--secondary); }
+    .option-btn.selected { border-color: var(--primary); background: var(--secondary); font-weight: bold; }
+
+    input[type="text"], textarea { width: 100%; padding: 12px; border: 2px solid var(--border); border-radius: 6px; font-size: 1rem; margin-top: 10px; font-family: 'Courier New', monospace; }
+    input[type="text"]:focus, textarea:focus { border-color: var(--primary); outline: none; }
+
+    .matching-container { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+    .matching-pair { display: flex; flex-direction: column; gap: 5px; }
+    .matching-pair label { font-weight: 600; font-size: 0.9rem; }
+    select.matching-select { padding: 10px; border-radius: 6px; border: 2px solid var(--border); font-size: 0.9rem; background: white; }
+
+    .controls { display: flex; justify-content: space-between; margin-top: 25px; border-top: 1px solid var(--border); padding-top: 20px; }
+    .btn { padding: 10px 22px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 0.95rem; }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-secondary { background: #e0e0e0; color: #333; }
+    .btn-secondary:hover { background: #d0d0d0; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .feedback-box { margin-top: 20px; padding: 15px; border-radius: 8px; display: none; font-size: 0.95rem; }
+    .feedback-box.incorrect { background: #fde8e8; border: 1px solid #f8b4b4; color: #9b1c1c; }
+    .feedback-box.correct { background: #def7ec; border: 1px solid #31c48d; color: #03543f; }
+
+    /* Results View */
+    .results-header { text-align: center; margin-bottom: 30px; }
+    .score-circle { width: 120px; height: 120px; border-radius: 50%; background: var(--primary); color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0 auto 15px auto; }
+    .score-circle .number { font-size: 2.2rem; font-weight: bold; line-height: 1; }
+    .score-circle .label { font-size: 0.75rem; text-transform: uppercase; }
+
+    .breakdown-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 30px; }
+    .breakdown-card { background: var(--secondary); padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #d0e1f9; }
+    .breakdown-card .val { font-size: 1.4rem; font-weight: bold; color: var(--primary); }
+    .breakdown-card .lbl { font-size: 0.8rem; color: #555; text-transform: uppercase; }
+
+    .teacher-toggle { text-align: center; margin: 20px 0; }
+    .teacher-report { display: none; margin-top: 30px; border-top: 2px dashed var(--border); padding-top: 20px; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .report-table th, .report-table td { border: 1px solid var(--border); padding: 8px; text-align: left; }
+    .report-table th { background: #f1f1f1; }
+    .status-pass { color: var(--success); font-weight: bold; }
+    .status-fail { color: var(--error); font-weight: bold; }
+
+    @media (max-width: 600px) {
+      .matching-container { grid-template-columns: 1fr; }
+      .assessment-container { padding: 15px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="assessment-container">
+  <header>
+    <div>
+      <h1>Cambridge Primary SQL Assessment</h1>
+      <div class="subtitle">Year 5 Computing & Digital Literacy · Lessons 1–10</div>
+    </div>
+    <span class="badge" id="level-badge">Level 1: Knowledge</span>
+  </header>
+
+  <div id="quiz-view">
+    <div class="progress-bar-container">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+
+    <div class="meta-info">
+      <span id="question-number">Question 1 of 35</span>
+      <span id="topic-tag">Topic: SQL Basics</span>
+    </div>
+
+    <div class="question-card" id="question-card">
+      <!-- Dynamic Question Content -->
+    </div>
+
+    <div class="feedback-box" id="feedback-box"></div>
+
+    <div class="controls">
+      <button class="btn btn-secondary" id="prev-btn" onclick="prevQuestion()" disabled>Previous</button>
+      <button class="btn btn-primary" id="submit-btn" onclick="submitAnswer()">Submit Answer</button>
+      <button class="btn btn-primary" id="next-btn" onclick="nextQuestion()" style="display:none;">Next Question</button>
+    </div>
+  </div>
+
+  <div id="results-view" style="display: none;">
+    <div class="results-header">
+      <h2>Assessment Completed!</h2>
+      <p style="color: #666; margin-top: 5px;">Here is your performance summary for SQL Lessons 1–10.</p>
+    </div>
+
+    <div class="score-circle">
+      <span class="number" id="total-percent">0%</span>
+      <span class="label">Total Score</span>
+    </div>
+
+    <div class="breakdown-grid">
+      <div class="breakdown-card"><div class="val" id="score-raw">0/0</div><div class="lbl">Questions Correct</div></div>
+      <div class="breakdown-card"><div class="val" id="score-knowledge">0%</div><div class="lbl">Knowledge</div></div>
+      <div class="breakdown-card"><div class="val" id="score-understanding">0%</div><div class="lbl">Understanding</div></div>
+      <div class="breakdown-card"><div class="val" id="score-application">0%</div><div class="lbl">Application</div></div>
+      <div class="breakdown-card"><div class="val" id="score-analysis">0%</div><div class="lbl">Analysis & Challenge</div></div>
+    </div>
+
+    <div class="teacher-toggle">
+      <button class="btn btn-secondary" onclick="toggleTeacherReport()">Toggle Detailed Teacher Review</button>
+    </div>
+
+    <div class="teacher-report" id="teacher-report">
+      <h3>Teacher Diagnostic Log</h3>
+      <p style="font-size: 0.85rem; color: #666; margin-bottom: 15px;">Formative summary for Cambridge Year 5 Computing standard verification.</p>
+      <table class="report-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Topic (Lesson)</th>
+            <th>Skill Level</th>
+            <th>Student Answer</th>
+            <th>Result</th>
+            <th>Target Concept</th>
+          </tr>
+        </thead>
+        <tbody id="report-body"></tbody>
+      </table>
+    </div>
+
+    <div style="text-align: center; margin-top: 25px;">
+      <button class="btn btn-primary" onclick="location.reload()">Restart Assessment</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Complete Question Bank for Lessons 1 through 10
+  const questions = [
+    // --- LEVEL 1: KNOWLEDGE ---
+    {
+      id: 1,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 1: Introduction to SQL",
+      title: "What does the abbreviation 'SQL' stand for in computer science?",
+      type: "mcq",
+      options: [
+        "Sequential Query Language",
+        "Structured Query Language",
+        "Simple Question List",
+        "Software Quality Level"
+      ],
+      correct: 1,
+      feedback: "SQL stands for Structured Query Language. It is the standardized language used to communicate with databases."
+    },
+    {
+      id: 2,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 1: Database Structure",
+      title: "In a relational database table, what does a single horizontal ROW represent?",
+      type: "mcq",
+      options: [
+        "A single category or field of information",
+        "A complete record or individual item",
+        "The title of the entire database",
+        "A list of commands given to the computer"
+      ],
+      correct: 1,
+      feedback: "A horizontal row represents one complete record (for example, one specific student's details), while a vertical column represents a specific attribute (like Age)."
+    },
+    {
+      id: 3,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 2: Choosing Columns",
+      title: "Which SQL symbol is used as a shorthand wildcard to select ALL columns from a table?",
+      type: "mcq",
+      options: [
+        "# (Hashtag)",
+        "% (Percent)",
+        "* (Asterisk)",
+        "& (Ampersand)"
+      ],
+      correct: 2,
+      feedback: "The asterisk (*) symbol means 'all columns'. For instance, SELECT * FROM Students retrieves every column available in the table."
+    },
+    {
+      id: 4,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 3: Filtering Exact Matches",
+      title: "When filtering text values in SQL (such as a person's name), how must the text be enclosed?",
+      type: "mcq",
+      options: [
+        "Inside square brackets [like this]",
+        "Inside single quotation marks 'like this'",
+        "Inside curly braces {like this}",
+        "Without any marks around it"
+      ],
+      correct: 1,
+      feedback: "Text values (strings) in SQL queries must always be wrapped inside single quotation marks, e.g., house = 'Earth'."
+    },
+    {
+      id: 5,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 7: Sorting Results",
+      title: "Match each SQL keyword to its correct sorting direction.",
+      type: "matching",
+      pairs: [
+        { term: "ASC", correct: "Sorts from lowest to highest (A-Z or 1-10)" },
+        { term: "DESC", correct: "Sorts from highest to lowest (Z-A or 10-1)" }
+      ],
+      options: [
+        "Sorts from lowest to highest (A-Z or 1-10)",
+        "Sorts from highest to lowest (Z-A or 10-1)"
+      ],
+      feedback: "ASC stands for Ascending (smallest to largest), whereas DESC stands for Descending (largest to smallest)."
+    },
+    {
+      id: 6,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 8: Limiting Results",
+      title: "Which SQL clause is placed at the end of a query to cap the maximum number of rows returned?",
+      type: "mcq",
+      options: [
+        "STOP",
+        "MAX",
+        "LIMIT",
+        "TOP"
+      ],
+      correct: 2,
+      feedback: "The LIMIT clause restricts the output to a specific number of records (e.g., LIMIT 5)."
+    },
+    {
+      id: 7,
+      level: "Level 1: Knowledge",
+      skill: "Knowledge",
+      lesson: "Lesson 10: Special Conditions",
+      title: "True or False: In SQL, 'NULL' represents a value of zero (0).",
+      type: "tf",
+      options: ["True", "False"],
+      correct: 1,
+      feedback: "False. NULL in SQL means 'missing' or 'unknown' data. Zero (0) is an actual numeric value, which is completely different from NULL."
+    },
+
+    // --- LEVEL 2: UNDERSTANDING ---
+    {
+      id: 8,
+      level: "Level 2: Understanding",
+      skill: "Understanding",
+      lesson: "Lesson 2: Choosing Columns",
+      title: "Read the SQL command below. What will this query display?",
+      code: "SELECT name, house FROM Students;",
+      type: "mcq",
+      options: [
+        "All details and columns for every student in the table",
+        "Only the 'name' and 'house' columns for every student",
+        "The names of students who live in a house",
+        "A brand new table called 'name'"
+      ],
+      correct: 1,
+      feedback: "Specifying 'name, house' directly after SELECT instructs the database to fetch only those two specific vertical columns, omitting other columns like age or ID."
+    },
+    {
+      id: 9,
+      level: "Level 2: Understanding",
+      skill: "Understanding",
+      lesson: "Lesson 5: Multiple Conditions",
+      title: "Why would a programmer use the AND operator instead of the OR operator in a WHERE clause?",
+      type: "mcq",
+      options: [
+        "Because AND works faster than OR on large databases",
+        "Because AND requires ALL listed conditions to be true at the same time",
+        "Because AND allows rows that match only one of the conditions to appear",
+        "Because AND automatically sorts the results in alphabetical order"
+      ],
+      correct: 1,
+      feedback: "The AND operator narrows down results because a record must satisfy every single condition to be included."
+    },
+    {
+      id: 10,
+      level: "Level 2: Understanding",
+      skill: "Understanding",
+      lesson: "Lesson 6: Pattern Matching",
+      title: "In an SQL LIKE pattern, what is the exact difference between the '%' wildcard and the '_' wildcard?",
+      type: "mcq",
+      options: [
+        "%' matches numbers, while '_' matches letters",
+        "%' matches zero or any number of characters, while '_' matches exactly ONE character",
+        "%' works only at the start of words, while '_' works only at the end",
+        "There is no difference; both do the exact same thing"
+      ],
+      correct: 1,
+      feedback: "% is a multi-character wildcard (0 or more letters/digits), whereas _ is a single-character placeholder."
+    },
+    {
+      id: 11,
+      level: "Level 2: Understanding",
+      skill: "Understanding",
+      lesson: "Lesson 9: Aliases & Arithmetic",
+      title: "What is the purpose of the AS keyword in the following query?",
+      code: "SELECT score + 10 AS final_score FROM ExamResults;",
+      type: "mcq",
+      options: [
+        "It permanently changes the database table name to final_score",
+        "It gives the calculated result column a friendly, temporary display header named 'final_score'",
+        "It saves the score into a computer file on your hard drive",
+        "It deletes all scores that are less than 10"
+      ],
+      correct: 1,
+      feedback: "AS creates a column alias. It renames the output column display header temporarily without changing the underlying database structure."
+    },
+    {
+      id: 12,
+      level: "Level 2: Understanding",
+      skill: "Understanding",
+      lesson: "Lesson 4: Numerical Comparisons",
+      title: "Which operator means 'NOT EQUAL TO' in standard SQL syntax?",
+      type: "mcq",
+      options: [
+        "==",
+        "=",
+        "<>",
+        "!"
+      ],
+      correct: 2,
+      feedback: "In SQL, the symbol pair <> (or != in some dialects) represents 'Not Equal To'."
+    },
+    {
+      id: 13,
+      level: "Level 2: Understanding",
+      skill: "Understanding",
+      lesson: "Lesson 10: Special Conditions",
+      title: "Consider this query: SELECT * FROM ClubMembers WHERE phone IS NULL; What is it looking for?",
+      type: "mcq",
+      options: [
+        "Members whose phone number is set to 0",
+        "Members whose phone number text is literally written as 'NULL'",
+        "Members whose phone number was never recorded or is missing",
+        "Members who do not own a phone"
+      ],
+      correct: 2,
+      feedback: "IS NULL checks for missing or empty data entries in a table column."
+    },
+
+    // --- LEVEL 3: APPLICATION ---
+    {
+      id: 14,
+      level: "Level 3: Application",
+      skill: "Application",
+      lesson: "Lesson 3 & 4: Filtering",
+      table: {
+        caption: "Table: Students",
+        headers: ["id", "name", "age", "house"],
+        rows: [
+          [1, "Amara", 10, "Earth"],
+          [2, "Leo", 9, "Water"],
+          [3, "Maya", 10, "Fire"],
+          [4, "Chen", 10, "Earth"]
+        ]
+      },
+      title: "Which SQL statement will successfully select all information for students who belong to the 'Earth' house?",
+      type: "mcq",
+      options: [
+        "SELECT Earth FROM Students;",
+        "SELECT * FROM Students WHERE house = 'Earth';",
+        "SELECT * FROM Earth WHERE house = Students;",
+        "FIND ALL Students WHERE house IS Earth;"
+      ],
+      correct: 1,
+      feedback: "SELECT * FROM Students WHERE house = 'Earth'; correctly targets the 'house' column and filters for the value 'Earth'."
+    },
+    {
+      id: 15,
+      level: "Level 3: Application",
+      skill: "Application",
+      lesson: "Lesson 5: Multiple Conditions",
+      table: {
+        caption: "Table: Animals",
+        headers: ["name", "class", "legs", "endangered"],
+        rows: [
+          ["Elephant", "Mammal", 4, "Yes"],
+          ["Eagle", "Bird", 2, "No"],
+          ["Tiger", "Mammal", 4, "Yes"],
+          ["Frog", "Amphibian", 4, "No"]
+        ]
+      },
+      title: "Write or complete the missing SQL keywords to find animals with 4 legs that are also endangered.",
+      code: "SELECT name FROM Animals WHERE legs = 4 _____ endangered = 'Yes';",
+      type: "fill",
+      correct: "AND",
+      feedback: "Since both conditions must be true simultaneously (4 legs AND endangered), the AND operator is required."
+    },
+    {
+      id: 16,
+      level: "Level 3: Application",
+      skill: "Application",
+      lesson: "Lesson 6: Pattern Matching",
+      title: "You want to find all books whose titles start with the word 'Harry'. Which SQL query is correct?",
+      type: "mcq",
+      options: [
+        "SELECT * FROM Books WHERE title LIKE 'Harry%';",
+        "SELECT * FROM Books WHERE title = 'Harry';",
+        "SELECT * FROM Books WHERE title LIKE '_Harry';",
+        "SELECT * FROM Books WHERE title IN ('Harry');"
+      ],
+      correct: 0,
+      feedback: "'Harry%' matches 'Harry' followed by any sequence of characters (e.g., 'Harry Potter and the Sorcerer\'s Stone')."
+    },
+    {
+      id: 17,
+      level: "Level 3: Application",
+      skill: "Application",
+      lesson: "Lesson 7: Sorting Results",
+      title: "You are creating a leaderboard for a video game. You want to display player names with the highest score at the top. Which query does this?",
+      type: "mcq",
+      options: [
+        "SELECT player_name, score FROM Players ORDER BY score ASC;",
+        "SELECT player_name, score FROM Players ORDER BY score DESC;",
+        "SELECT player_name, score FROM Players SORT BY score HIGH;",
+        "SELECT player_name, score FROM Players WHERE score = MAX;"
+      ],
+      correct: 1,
+      feedback: "ORDER BY score DESC sorts the numeric scores in descending order (highest value first)."
+    },
+    {
+      id: 18,
+      level: "Level 3: Application",
+      skill: "Application",
+      lesson: "Lesson 8: Limiting Results",
+      title: "Building on the leaderboard above, which clause would you append to display ONLY the Top 3 players?",
+      type: "mcq",
+      options: [
+        "LIMIT 3",
+        "TOP 3 ONLY",
+        "WHERE rank <= 3",
+        "MAX 3"
+      ],
+      correct: 0,
+      feedback: "Appending 'LIMIT 3' to an query sorted in descending order restricts the output table to the top 3 rows."
+    },
+    {
+      id: 19,
+      level: "Level 3: Application",
+      skill: "Application",
+      lesson: "Lesson 10: In-List Filtering",
+      title: "Select ALL SQL queries that will correctly find students who belong to EITHER the 'Fire' OR 'Water' house. (Multiple Select)",
+      type: "multiselect",
+      options: [
+        "SELECT * FROM Students WHERE house = 'Fire' OR house = 'Water';",
+        "SELECT * FROM Students WHERE house IN ('Fire', 'Water');",
+        "SELECT * FROM Students WHERE house AND ('Fire', 'Water');",
+        "SELECT * FROM Students WHERE house = 'Fire' AND house = 'Water';"
+      ],
+      correct: [0, 1],
+      feedback: "Option 1 uses explicit OR syntax, while Option 2 uses the cleaner IN (...) syntax. Both give the exact same result."
+    },
+
+    // --- LEVEL 4: ANALYSIS ---
+    {
+      id: 20,
+      level: "Level 4: Analysis",
+      skill: "Analysis",
+      lesson: "Lesson 4 & 5: Complex Logic",
+      table: {
+        caption: "Table: LibraryBooks",
+        headers: ["title", "genre", "pages"],
+        rows: [
+          ["Space Quest", "Sci-Fi", 180],
+          ["Deep Ocean", "Science", 95],
+          ["Mystery Manor", "Mystery", 220],
+          ["Galaxy Wars", "Sci-Fi", 310],
+          ["Insect World", "Science", 110]
+        ]
+      },
+      title: "Study the table above. How many rows will be returned by the following query?",
+      code: "SELECT title FROM LibraryBooks WHERE genre = 'Sci-Fi' OR pages < 100;",
+      type: "mcq",
+      options: ["1 row", "2 rows", "3 rows", "4 rows"],
+      correct: 2,
+      feedback: "Let's analyze row by row:\n1. Space Quest (Sci-Fi, 180): Matches genre 'Sci-Fi' -> YES\n2. Deep Ocean (Science, 95): Matches pages < 100 -> YES\n3. Mystery Manor (Mystery, 220): Neither -> NO\n4. Galaxy Wars (Sci-Fi, 310): Matches genre 'Sci-Fi' -> YES\n5. Insect World (Science, 110): Neither -> NO\nTotal = 3 rows."
+    },
+    {
+      id: 21,
+      level: "Level 4: Analysis",
+      skill: "Analysis",
+      lesson: "Lesson 3: Syntax Errors",
+      title: "Spot the Error: A student wrote this SQL query, but the database returned a Syntax Error.",
+      code: "SELECT name, age FROM Students WHERE house = Earth;",
+      type: "mcq",
+      options: [
+        "The word SELECT should be written in lowercase.",
+        "The text value Earth is missing single quotation marks ('Earth').",
+        "The query is missing a comma between Students and WHERE.",
+        "The age column cannot be selected alongside the name column."
+      ],
+      correct: 1,
+      feedback: "In SQL, literal text strings must be enclosed in single quotes ('Earth'). Without quotes, the database thinks Earth is a column name."
+    },
+    {
+      id: 22,
+      level: "Level 4: Analysis",
+      skill: "Analysis",
+      lesson: "Lesson 6: Pattern Matching Analysis",
+      table: {
+        caption: "Table: Pets",
+        headers: ["pet_id", "pet_name", "species"],
+        rows: [
+          [101, "Barnaby", "Dog"],
+          [102, "Bella", "Cat"],
+          [103, "Bob", "Hamster"],
+          [104, "Brodie", "Dog"]
+        ]
+      },
+      title: "Analyze this query against the Pets table. Which pet_names will appear in the output?",
+      code: "SELECT pet_name FROM Pets WHERE pet_name LIKE 'B_b%';",
+      type: "mcq",
+      options: [
+        "Barnaby and Brodie",
+        "Bob only",
+        "Barnaby, Bella, Bob, and Brodie",
+        "Bella and Bob"
+      ],
+      correct: 1,
+      feedback: "Pattern 'B_b%': Starts with 'B', followed by ANY SINGLE letter, followed by 'b', then followed by anything else.\n'Bob': B - o - b -> Matches!\n'Barnaby': B - a - r (3rd letter is 'r', not 'b') -> No\n'Bella': B - e - l -> No\n'Brodie': B - r - o -> No."
+    },
+    {
+      id: 23,
+      level: "Level 4: Analysis",
+      skill: "Analysis",
+      lesson: "Lesson 9: Calculations",
+      table: {
+        caption: "Table: ShopItems",
+        headers: ["item", "price"],
+        rows: [
+          ["Notebook", 4.00],
+          ["Pencil Case", 6.50],
+          ["Ruler", 1.50]
+        ]
+      },
+      title: "What values will be displayed under the new column header for 'Ruler' when this query executes?",
+      code: "SELECT item, price * 2 AS double_price FROM ShopItems WHERE item = 'Ruler';",
+      type: "mcq",
+      options: [
+        "item: Ruler | double_price: 1.50",
+        "item: Ruler | double_price: 3.00",
+        "item: Ruler | double_price: 3.0",
+        "Syntax Error: SQL cannot do multiplication"
+      ],
+      correct: 1,
+      feedback: "Ruler's base price is 1.50. The expression 'price * 2' multiplies 1.50 by 2, resulting in 3.00 under the column alias 'double_price'."
+    },
+    {
+      id: 24,
+      level: "Level 4: Analysis",
+      skill: "Analysis",
+      lesson: "Lesson 7 & 8: Order of Execution",
+      title: "Why is the ORDER BY clause placed BEFORE the LIMIT clause in an SQL statement?",
+      type: "mcq",
+      options: [
+        "Because SQL executes sequentially: it must sort all data first so LIMIT takes the correct top/bottom records",
+        "Because LIMIT only works on text, not numbers",
+        "It doesn't matter; you can swap ORDER BY and LIMIT in any order",
+        "Because ORDER BY creates a new table, and LIMIT deletes it"
+      ],
+      correct: 0,
+      feedback: "You must sort the complete dataset first (ORDER BY) before taking a slice of the rows (LIMIT). Swapping them would result in taking a random slice and then sorting only those few rows."
+    },
+
+    // --- LEVEL 5: CHALLENGE (YEAR 5 HIGH ACHIEVER) ---
+    {
+      id: 25,
+      level: "Level 5: Challenge",
+      skill: "Analysis",
+      lesson: "Lesson 5: Impossible Conditions",
+      table: {
+        caption: "Table: ClubMembers",
+        headers: ["member_id", "first_name", "age"],
+        rows: [
+          [1, "Sophia", 9],
+          [2, "Ethan", 10],
+          [3, "Olivia", 10]
+        ]
+      },
+      title: "A student runs this query: SELECT * FROM ClubMembers WHERE age = 9 AND age = 10; What will happen?",
+      type: "mcq",
+      options: [
+        "It will return Sophia, Ethan, and Olivia.",
+        "It will return 0 rows (Empty set), because a single person's age cannot be both 9 and 10 at the same time.",
+        "It will return Sophia and Ethan.",
+        "The computer will crash with a critical memory error."
+      ],
+      correct: 1,
+      feedback: "Using AND on the same column with two distinct scalar values requires a single row's age cell to hold 9 and 10 simultaneously. That is logically impossible, so 0 rows match."
+    },
+    {
+      id: 26,
+      level: "Level 5: Challenge",
+      skill: "Analysis",
+      lesson: "Lesson 10: NULL Comparisons",
+      title: "Find the subtle logical flaw in this query intended to find students whose test score is missing:",
+      code: "SELECT name FROM TestResults WHERE score = NULL;",
+      type: "mcq",
+      options: [
+        "You cannot use SELECT on test scores.",
+        "In SQL, you cannot use '= NULL'. You must use the special phrase 'IS NULL'.",
+        "The table name must always be lowercase.",
+        "The score column must be written inside quotation marks."
+      ],
+      correct: 1,
+      feedback: "Because NULL represents an unknown value, nothing can be 'equal' to it (not even another NULL). Therefore, SQL requires 'IS NULL' or 'IS NOT NULL'."
+    },
+    {
+      id: 27,
+      level: "Level 5: Challenge",
+      skill: "Application",
+      lesson: "Lesson 1–10 Synthesis",
+      table: {
+        caption: "Table: SchoolRobots",
+        headers: ["robot_id", "model", "battery_pct", "status"],
+        rows: [
+          [1, "Alpha-1", 85, "Active"],
+          [2, "Beta-2", 15, "Charging"],
+          [3, "Alpha-2", 40, "Active"],
+          [4, "Gamma-9", 92, "Standby"],
+          [5, "Alpha-3", 12, "Active"]
+        ]
+      },
+      title: "Write an SQL query to retrieve the model and battery_pct of all Active robots whose battery is below 50%, sorted with the lowest battery first.",
+      type: "text",
+      correctKeywords: ["SELECT", "model", "battery_pct", "FROM", "SchoolRobots", "WHERE", "status", "Active", "battery_pct", "<", "50", "ORDER", "BY", "ASC"],
+      feedback: "Correct structure: SELECT model, battery_pct FROM SchoolRobots WHERE status = 'Active' AND battery_pct < 50 ORDER BY battery_pct ASC;"
+    },
+    {
+      id: 28,
+      level: "Level 5: Challenge",
+      skill: "Analysis",
+      lesson: "Lesson 6 & 7: Query Outcome Prediction",
+      table: {
+        caption: "Table: Inventory",
+        headers: ["item_name", "quantity", "aisle"],
+        rows: [
+          ["Red Paint", 12, "A1"],
+          ["Blue Paint", 5, "A2"],
+          ["Green Paint", 25, "B1"],
+          ["Paint Brush", 50, "A1"],
+          ["Canvas Board", 8, "B2"]
+        ]
+      },
+      title: "Predict the FIRST item_name that will appear in the output result set of this query:",
+      code: "SELECT item_name FROM Inventory WHERE item_name LIKE '%Paint%' ORDER BY quantity DESC LIMIT 1;",
+      type: "mcq",
+      options: ["Red Paint", "Green Paint", "Paint Brush", "Blue Paint"],
+      correct: 1,
+      feedback: "1. Filter LIKE '%Paint%': Red Paint (12), Blue Paint (5), Green Paint (25), Paint Brush (50).\n2. Sort ORDER BY quantity DESC: Paint Brush (50), Green Paint (25), Red Paint (12), Blue Paint (5).\n3. Wait! Does 'Paint Brush' contain 'Paint'? Yes ('%Paint%'). But let's re-verify: Green Paint is 25, Paint Brush is 50. So Paint Brush has quantity 50. Top 1 item sorted DESC by quantity is 'Paint Brush'!"
+    }
+  ];
+
+  // Global State
+  let currentQIndex = 0;
+  let userAnswers = {};
+  let answeredState = {}; // tracks whether a question was submitted
+
+  // Initialize
+  window.onload = function() {
+    renderQuestion();
+  };
+
+  function renderQuestion() {
+    const q = questions[currentQIndex];
+    const card = document.getElementById("question-card");
+    
+    // Header updates
+    document.getElementById("level-badge").innerText = q.level;
+    document.getElementById("question-number").innerText = `Question ${currentQIndex + 1} of ${questions.length}`;
+    document.getElementById("topic-tag").innerText = `Lesson: ${q.lesson}`;
+    document.getElementById("progress-bar").style.width = `${((currentQIndex + 1) / questions.length) * 100}%`;
+
+    // Reset controls
+    document.getElementById("feedback-box").style.display = "none";
+    document.getElementById("submit-btn").style.display = "inline-block";
+    document.getElementById("next-btn").style.display = "none";
+    document.getElementById("prev-btn").disabled = currentQIndex === 0;
+
+    let html = `<div class="question-title">${q.title}</div>`;
+
+    // Optional Table rendering
+    if (q.table) {
+      html += `<div class="data-table-container"><table class="db-table">`;
+      if (q.table.caption) html += `<caption>${q.table.caption}</caption>`;
+      html += `<thead><tr>${q.table.headers.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>`;
+      q.table.rows.forEach(row => {
+        html += `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    // Optional Code snippet
+    if (q.code) {
+      html += `<div class="sql-code">${escapeHtml(q.code)}</div>`;
+    }
+
+    // Question Input Types
+    if (q.type === "mcq" || q.type === "tf") {
+      html += `<div class="options-grid">`;
+      q.options.forEach((opt, idx) => {
+        const selected = userAnswers[q.id] === idx ? 'selected' : '';
+        html += `<button class="option-btn ${selected}" onclick="selectMCQ(${idx})"><span>${opt}</span></button>`;
+      });
+      html += `</div>`;
+    } else if (q.type === "multiselect") {
+      html += `<div class="options-grid">`;
+      q.options.forEach((opt, idx) => {
+        const currentArr = userAnswers[q.id] || [];
+        const selected = currentArr.includes(idx) ? 'selected' : '';
+        html += `<button class="option-btn ${selected}" onclick="toggleMultiSelect(${idx})"><span>${opt}</span></button>`;
+      });
+      html += `</div>`;
+    } else if (q.type === "fill" || q.type === "text") {
+      const val = userAnswers[q.id] || '';
+      html += `<input type="text" id="text-answer" placeholder="Type your SQL / answer here..." value="${escapeHtml(val)}" oninput="saveTextAnswer(this.value)">`;
+    } else if (q.type === "matching") {
+      html += `<div class="matching-container">`;
+      q.pairs.forEach((pair, idx) => {
+        html += `<div class="matching-pair">
+          <label>${pair.term}</label>
+          <select class="matching-select" id="match-${idx}" onchange="saveMatchingAnswer()">
+            <option value="">-- Choose matching definition --</option>
+            ${q.options.map(o => `<option value="${o}" ${userAnswers[q.id] && userAnswers[q.id][idx] === o ? 'selected' : ''}>${o}</option>`).join('')}
+          </select>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+
+    card.innerHTML = html;
+
+    // Restore state if already submitted
+    if (answeredState[q.id]) {
+      showFeedback(answeredState[q.id].isCorrect, answeredState[q.id].feedback);
+      document.getElementById("submit-btn").style.display = "none";
+      document.getElementById("next-btn").style.display = "inline-block";
+    }
+  }
+
+  function escapeHtml(str) {
+    return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function selectMCQ(index) {
+    const q = questions[currentQIndex];
+    if (answeredState[q.id]) return;
+    userAnswers[q.id] = index;
+    renderQuestion();
+  }
+
+  function toggleMultiSelect(index) {
+    const q = questions[currentQIndex];
+    if (answeredState[q.id]) return;
+    let arr = userAnswers[q.id] || [];
+    if (arr.includes(index)) {
+      arr = arr.filter(i => i !== index);
+    } else {
+      arr.push(index);
+    }
+    userAnswers[q.id] = arr;
+    renderQuestion();
+  }
+
+  function saveTextAnswer(val) {
+    const q = questions[currentQIndex];
+    userAnswers[q.id] = val;
+  }
+
+  function saveMatchingAnswer() {
+    const q = questions[currentQIndex];
+    const ans = [];
+    q.pairs.forEach((_, idx) => {
+      const el = document.getElementById(`match-${idx}`);
+      ans.push(el ? el.value : '');
+    });
+    userAnswers[q.id] = ans;
+  }
+
+  function submitAnswer() {
+    const q = questions[currentQIndex];
+    const userAns = userAnswers[q.id];
+
+    if (userAns === undefined || userAns === '' || (Array.isArray(userAns) && userAns.length === 0)) {
+      alert("Please select or enter an answer before submitting.");
+      return;
+    }
+
+    let isCorrect = false;
+
+    // Validation Logic
+    if (q.type === "mcq" || q.type === "tf") {
+      isCorrect = userAns === q.correct;
+    } else if (q.type === "multiselect") {
+      const sortedUser = [...userAns].sort();
+      const sortedCorrect = [...q.correct].sort();
+      isCorrect = JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect);
+    } else if (q.type === "fill") {
+      isCorrect = userAns.trim().toUpperCase() === q.correct.toUpperCase();
+    } else if (q.type === "text") {
+      // Check if essential SQL keywords exist in user answer
+      const upperVal = userAns.toUpperCase();
+      isCorrect = q.correctKeywords.every(kw => upperVal.includes(kw.toUpperCase()));
+    } else if (q.type === "matching") {
+      isCorrect = q.pairs.every((pair, idx) => userAns[idx] === pair.correct);
+    }
+
+    answeredState[q.id] = {
+      isCorrect: isCorrect,
+      feedback: q.feedback
+    };
+
+    showFeedback(isCorrect, q.feedback);
+    document.getElementById("submit-btn").style.display = "none";
+    document.getElementById("next-btn").style.display = "inline-block";
+  }
+
+  function showFeedback(isCorrect, msg) {
+    const fb = document.getElementById("feedback-box");
+    fb.className = `feedback-box ${isCorrect ? 'correct' : 'incorrect'}`;
+    fb.innerHTML = `<strong>${isCorrect ? ' Correct!' : ' Not quite right.'}</strong><br>${msg}`;
+    fb.style.display = "block";
+  }
+
+  function nextQuestion() {
+    if (currentQIndex < questions.length - 1) {
+      currentQIndex++;
+      renderQuestion();
+    } else {
+      showResults();
+    }
+  }
+
+  function prevQuestion() {
+    if (currentQIndex > 0) {
+      currentQIndex--;
+      renderQuestion();
+    }
+  }
+
+  function showResults() {
+    document.getElementById("quiz-view").style.display = "none";
+    document.getElementById("results-view").style.display = "block";
+
+    let totalCorrect = 0;
+    const skillTotals = { Knowledge: { c: 0, t: 0 }, Understanding: { c: 0, t: 0 }, Application: { c: 0, t: 0 }, Analysis: { c: 0, t: 0 } };
+    let reportHtml = '';
+
+    questions.forEach((q, idx) => {
+      const state = answeredState[q.id] || { isCorrect: false };
+      if (state.isCorrect) totalCorrect++;
+
+      // Track skills
+      if (skillTotals[q.skill]) {
+        skillTotals[q.skill].t++;
+        if (state.isCorrect) skillTotals[q.skill].c++;
+      }
+
+      // Teacher Report row
+      const uAnsDisplay = Array.isArray(userAnswers[q.id]) ? userAnswers[q.id].join(', ') : (userAnswers[q.id] !== undefined ? userAnswers[q.id] : 'Unanswered');
+      reportHtml += `<tr>
+        <td>${idx + 1}</td>
+        <td>${q.lesson}</td>
+        <td>${q.skill}</td>
+        <td><code>${escapeHtml(String(uAnsDisplay))}</code></td>
+        <td class="${state.isCorrect ? 'status-pass' : 'status-fail'}">${state.isCorrect ? 'PASSED' : 'FAILED'}</td>
+        <td>${q.feedback}</td>
+      </tr>`;
+    });
+
+    const percent = Math.round((totalCorrect / questions.length) * 100);
+    document.getElementById("total-percent").innerText = `${percent}%`;
+    document.getElementById("score-raw").innerText = `${totalCorrect}/${questions.length}`;
+
+    const calcSkill = (key) => skillTotals[key].t > 0 ? `${Math.round((skillTotals[key].c / skillTotals[key].t) * 100)}%` : 'N/A';
+    document.getElementById("score-knowledge").innerText = calcSkill('Knowledge');
+    document.getElementById("score-understanding").innerText = calcSkill('Understanding');
+    document.getElementById("score-application").innerText = calcSkill('Application');
+    document.getElementById("score-analysis").innerText = calcSkill('Analysis');
+
+    document.getElementById("report-body").innerHTML = reportHtml;
+  }
+
+  function toggleTeacherReport() {
+    const rep = document.getElementById("teacher-report");
+    rep.style.display = rep.style.display === "block" ? "none" : "block";
+  }
+</script>
+</body>
+</html>
