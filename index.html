@@ -10138,7 +10138,6 @@ window.doSetup = async function () {
     document.getElementById('ccSetup').remove(); delete card.dataset.setup;
     [...card.children].forEach(el => { el.style.display = ''; });
     ['loginErr', 'loginLock'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; });
-    const ins = card.querySelector('.cc-install'); if (ins) ins.style.display = 'none';
     document.getElementById('loginU').value = user; document.getElementById('loginP').value = p1;
     await doLogin();
   } catch (e) { fail(e.message || 'Could not create the account.'); btn.disabled = false; btn.textContent = 'Create admin account →'; }
@@ -11160,16 +11159,109 @@ window.ccRestoreRun = async function () {
 let _undoList = null;
 ccAdminSettingsCards.push(() => {
   const last = (_cfgCache && _cfgCache.lastBackup) ? new Date(_cfgCache.lastBackup).toLocaleDateString('en-GB') : 'never';
-  if (_undoList === null) { _undoList = []; fbGet('undo').then(s => { _undoList = Object.entries((s.exists() && s.val()) || {}).sort((a, b) => b[1].at - a[1].at); const el = document.getElementById('ccUndoList'); if (el) el.innerHTML = undoListHtml(); }).catch(() => {}); }
+  if (_undoList === null) {
+    _undoList = [];
+    fbGet('undo').then(s => {
+      _undoList = Object.entries((s.exists() && s.val()) || {}).sort((a, b) => b[1].at - a[1].at);
+      const el = document.getElementById('ccUndoList');
+      if (el) el.innerHTML = undoListHtml();
+    }).catch(() => {});
+  }
   return `<div class="scard"><div class="scard-ttl">💾 Backups &amp; undo</div>
     <p class="cc-note">Download a backup regularly (last: <b>${Security.esc(last)}</b>). The file holds pupils' names and work, so store it like any school record.</p>
     <button class="btn btn-sm" onclick="ccBackup()">⬇ Download backup</button> <button class="btn btn-sm" onclick="ccRestorePick()">♻ Restore from a backup…</button>
-    <div class="scard-ttl" style="margin-top:16px;font-size:13px">Recent changes you can undo</div><div id="ccUndoList">${undoListHtml()}</div></div>`;
+    <div class="scard-ttl" style="margin-top:16px;font-size:13px">Recent changes you can undo</div>
+    <div class="bulk-bar" id="undoBulkBar" style="display:none">
+      <span class="bulk-cnt" id="undoBulkCnt">0 selected</span>
+      <div class="bulk-acts">
+        <button class="btn btn-xs btn-red" onclick="bulkDeleteUndo()">🗑 Delete Forever</button>
+      </div>
+      <button class="btn btn-xs" onclick="clearUndoSelection()" style="margin-left:auto">✕ Deselect All</button>
+    </div>
+    <div id="ccUndoList">${undoListHtml()}</div></div>`;
 });
 function undoListHtml() {
   if (!_undoList || !_undoList.length) return '<p class="cc-note">Nothing to undo.</p>';
-  return _undoList.slice(0, 10).map(([id, u]) => `<div class="cc-ann-row"><div>${Security.esc(u.label)}<div class="cc-sub" style="margin:0">${Security.esc(new Date(u.at).toLocaleString('en-GB'))} · ${Security.esc(u.by || '')}</div></div><button class="btn btn-xs" onclick="ccUndo('${Security.jsq(id)}');_undoList=null">↶ Undo</button></div>`).join('');
+  const items = _undoList.slice(0, 10).map(([id, u]) => `
+    <div class="cc-ann-row" style="gap:10px">
+      <input type="checkbox" class="stu-cb undo-cb" data-id="${Security.esc(id)}" onchange="updateUndoBulkBar()" title="Select">
+      <div style="flex:1">${Security.esc(u.label)}<div class="cc-sub" style="margin:0">${Security.esc(new Date(u.at).toLocaleString('en-GB'))} · ${Security.esc(u.by || '')}</div></div>
+      <div class="act-row">
+        <button class="btn btn-xs" onclick="ccUndo('${Security.jsq(id)}');_undoList=null">↶ Undo</button>
+        <button class="btn btn-xs btn-red" title="Delete Forever" onclick="delUndo('${Security.jsq(id)}')">🗑</button>
+      </div>
+    </div>`).join('');
+  return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0 8px;border-bottom:1px solid var(--bdr);font-size:11.5px;color:var(--txt3)">
+    <input type="checkbox" id="undoSelectAll" class="stu-cb" onclick="toggleSelectAllUndo(this)" title="Select all">
+    <label for="undoSelectAll" style="cursor:pointer">Select all</label>
+  </div>${items}`;
 }
+function getSelectedUndoIds() {
+  return [...document.querySelectorAll('.undo-cb:checked')].map(cb => cb.dataset.id).filter(Boolean);
+}
+window.updateUndoBulkBar = function () {
+  const cbs = [...document.querySelectorAll('.undo-cb')];
+  const checked = cbs.filter(cb => cb.checked);
+  const bar = document.getElementById('undoBulkBar');
+  const cnt = document.getElementById('undoBulkCnt');
+  const all = document.getElementById('undoSelectAll');
+  if (bar) bar.style.display = checked.length ? 'flex' : 'none';
+  if (cnt) cnt.textContent = `${checked.length} selected`;
+  if (all) {
+    all.checked = cbs.length > 0 && checked.length === cbs.length;
+    all.indeterminate = checked.length > 0 && checked.length < cbs.length;
+  }
+};
+window.toggleSelectAllUndo = function (master) {
+  document.querySelectorAll('.undo-cb').forEach(cb => { cb.checked = master.checked; });
+  updateUndoBulkBar();
+};
+window.clearUndoSelection = function () {
+  document.querySelectorAll('.undo-cb').forEach(cb => { cb.checked = false; });
+  const all = document.getElementById('undoSelectAll');
+  if (all) { all.checked = false; all.indeterminate = false; }
+  updateUndoBulkBar();
+};
+window.delUndo = async function (id) {
+  if (!requireAdmin()) return;
+  const entry = (_undoList || []).find(([k]) => k === id);
+  const label = entry ? entry[1].label : id;
+  if (!confirm(`Delete "${label}" forever?\n\nThis cannot be undone.`)) return;
+  try {
+    await fbDel(`undo/${id}`);
+    _undoList = (_undoList || []).filter(([k]) => k !== id);
+    const el = document.getElementById('ccUndoList');
+    if (el) el.innerHTML = undoListHtml();
+    clearUndoSelection();
+    toast('Deleted forever.', 'warn');
+    logAct(`Admin permanently deleted undo entry "${label}"`, 'r');
+  } catch (e) {
+    toast('Could not delete: ' + e.message, 'err');
+  }
+};
+window.bulkDeleteUndo = async function () {
+  if (!requireAdmin()) return;
+  const ids = getSelectedUndoIds();
+  if (!ids.length) return;
+  const labels = ids.map(id => {
+    const found = (_undoList || []).find(([k]) => k === id);
+    return found ? found[1].label : id;
+  });
+  if (!confirm(`Permanently delete ${ids.length} item(s) forever?\n\n${labels.join('\n')}\n\nThis cannot be undone.`)) return;
+  try {
+    const upd = {};
+    ids.forEach(id => { upd[`undo/${id}`] = null; });
+    await _db.ref(FB_ROOT).update(upd);
+    _undoList = (_undoList || []).filter(([k]) => !ids.includes(k));
+    const el = document.getElementById('ccUndoList');
+    if (el) el.innerHTML = undoListHtml();
+    clearUndoSelection();
+    toast(`${ids.length} item(s) deleted forever.`, 'warn');
+    logAct(`Admin permanently deleted ${ids.length} undo item(s)`, 'r');
+  } catch (e) {
+    toast('Could not delete: ' + e.message, 'err');
+  }
+};
 let _cfgCache = null;
 (function () { const o = renderAdm; renderAdm = function () { if (admSec2 === 'settings') { _undoList = null; fbGet('config').then(s => { _cfgCache = s.val() || {}; }).catch(() => {}); } return o.apply(this, arguments); }; })();
 
@@ -13035,7 +13127,6 @@ document.addEventListener('click', function(e) {
    FEATURES LAYER
    1. Code editors: live syntax colouring + smart indentation
    2. Student home: "Continue where you left off", streaks, badges
-   3. Install as an app (PWA) when manifest/sw files are deployed
    Reads the app's globals (curUser, curCourse, COURSES, getStu …);
    it never changes grading. Streaks are stored in users/{uid}/streak.
 ═══════════════════════════════════════════════════════ */
@@ -13318,31 +13409,6 @@ document.addEventListener('click', function(e) {
     window.renderSB = function () { const r = orig.apply(this, arguments); try { paintStreak(); topButton(); } catch (e) {} return r; };
   }
 
-  /* ═══════════ 3. INSTALL AS AN APP ═══════════ */
-  let deferred = null;
-  function installButtons(show) {
-    document.querySelectorAll('.cc-install').forEach(b => { b.style.display = show ? '' : 'none'; });
-  }
-  window.ccInstall = async function () {
-    if (!deferred) return;
-    deferred.prompt();
-    try { await deferred.userChoice; } catch (e) {}
-    deferred = null; installButtons(false);
-  };
-  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; installButtons(true); });
-  window.addEventListener('appinstalled', () => { installButtons(false); toast('Code Club installed — find it on your home screen.'); });
-  async function pwa() {
-    if (!/^https?:$/.test(location.protocol)) return;
-    try {
-      const r = await fetch('manifest.webmanifest', { method: 'HEAD', cache: 'no-store' });
-      if (!r.ok || !/json|manifest/.test(r.headers.get('content-type') || '')) return;
-    } catch (e) { return; }
-    const l = document.createElement('link'); l.rel = 'manifest'; l.href = 'manifest.webmanifest'; document.head.appendChild(l);
-    const a = document.createElement('link'); a.rel = 'apple-touch-icon'; a.href = 'icon-192.png'; document.head.appendChild(a);
-    if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-  }
-
-
   /* ═══════════ 4. SESSION GUARD ═══════════
      Signs out students and admins after Security.SESSION_IDLE_MIN minutes
      without activity, or Security.SESSION_MAX_HRS hours after signing in.
@@ -13417,12 +13483,7 @@ document.addEventListener('click', function(e) {
     scan();
     new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { if (n.matches && n.matches('textarea')) enhance(n); else if (n.querySelector) scan(n); } })
       .observe(document.body, { childList: true, subtree: true });
-    const card = document.querySelector('.login-card');
-    if (card && !card.querySelector('.cc-install')) card.insertAdjacentHTML('beforeend', '<button class="btn cc-install" style="display:none;width:100%;justify-content:center;margin-top:10px" onclick="ccInstall()">📲 Install Code Club as an app</button>');
-    const foot = document.querySelector('#pg-app .sb-foot');
-    if (foot && !foot.querySelector('.cc-install')) foot.insertAdjacentHTML('beforeend', '<button class="btn btn-xs cc-install" style="display:none;width:100%;justify-content:center;margin-top:6px" onclick="ccInstall()">📲 Install app</button>');
     topButton();
-    pwa();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
