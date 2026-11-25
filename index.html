@@ -13111,18 +13111,7 @@ document.addEventListener('click', function(e) {
     const origLogin = window.doLogin;
     window.doLogin = function () { const n = document.getElementById('loginNote'); if (n) n.style.display = 'none'; return origLogin.apply(this, arguments); };
   }
-
-  function init() {
-    scan();
-    new MutationObserver(ms => { for (const m of ms) for (const n of m.addedNodes) if (n.nodeType === 1) { if (n.matches && n.matches('textarea')) enhance(n); else if (n.querySelector) scan(n); } })
-      .observe(document.body, { childList: true, subtree: true });
-    const card = document.querySelector('.login-card');
-    if (card && !card.querySelector('.cc-install')) card.insertAdjacentHTML('beforeend', '<button class="btn cc-install" style="display:none;width:100%;justify-content:center;margin-top:10px" onclick="ccInstall()">📲 Install Code Club as an app</button>');
-    const foot = document.querySelector('#pg-app .sb-foot');
-    if (foot && !foot.querySelector('.cc-install')) foot.insertAdjacentHTML('beforeend', '<button class="btn btn-xs cc-install" style="display:none;width:100%;justify-content:center;margin-top:6px" onclick="ccInstall()">📲 Install app</button>');
-    topButton();
-    pwa();
-  }
+  
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
 })();
 
